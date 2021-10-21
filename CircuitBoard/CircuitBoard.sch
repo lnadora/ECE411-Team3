@@ -284,4 +284,15 @@ F 3 "" H 1650 4350 50  0001 C CNN
 	1    1700 3900
 	1    0    0    -1  
 $EndComp
+$Comp
+L Sensor:DHT11 U?
+U 1 1 61734C4D
+P 3800 4950
+F 0 "U?" H 3556 4996 50  0000 R CNN
+F 1 "DHT11" H 3556 4905 50  0000 R CNN
+F 2 "Sensor:Aosong_DHT11_5.5x12.0_P2.54mm" H 3800 4550 50  0001 C CNN
+F 3 "http://akizukidenshi.com/download/ds/aosong/DHT11.pdf" H 3950 5200 50  0001 C CNN
+	1    3800 4950
+	1    0    0    -1  
+$EndComp
 $EndSCHEMATC
