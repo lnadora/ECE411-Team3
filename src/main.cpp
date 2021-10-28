@@ -164,7 +164,7 @@ const int stepsPerRevolution = 2048;
 #define IN3 PIN_D5
 #define IN4 PIN_D17
 
-Stepper myStepper(stepsPerRevolution, IN1, IN2, IN3, IN4);
+Stepper myStepper(stepsPerRevolution, IN1, IN3, IN2, IN4);
 
 
 /***********************************************************************************
@@ -202,7 +202,7 @@ void setup() {
   //setup SPIFFS
   initSPIFFS();
   //set the stepper speed
-  myStepper.setSpeed(3);
+  myStepper.setSpeed(5);
   //Setup DHT
   dht.begin();
   // Web Server Root URL
