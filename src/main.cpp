@@ -147,12 +147,19 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   
   if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
     data[len] = 0;
+    //message is the data sent to the ESP when the 'submit' button is pressed
     message = (char*)data;
+    //right now we have three variables we recieve in the message string
+    //they are seperated by an "&" 
+    //indexOfFirst is the position of the first "&"
+    //indexOfSec is the positon of the second "&"
     int indexOfFirst = message.indexOf("&");
     int indexOfSec   = message.indexOf("&",indexOfFirst+1);
-
+    //steps is the value between the beginning of the string and "&"
     steps = message.substring(0, message.indexOf("&"));
+    //direction is the value between the first "&" and second
     direction = message.substring(indexOfFirst+1, indexOfSec);
+    //timeOn is the value between the second "&" and the end of the string
     timeOn = message.substring(indexOfSec+1, message.length());
     Serial.print("steps");
     Serial.println(steps);

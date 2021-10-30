@@ -44,7 +44,10 @@ function submitForm(){
     }
     
     var steps = document.getElementById("steps").value;
+    //declare a new variable for timeOn and set it to the value in the textbox
     var timeOn = document.getElementById("timeOn").value;
+    //assemble and send the string to send as a message to the ESP
+    //the values are seperated by "&"
     websocket.send(steps+"&"+direction+"&"+timeOn);
 }
 
