@@ -23,7 +23,7 @@
                                   Define Pins
  ***********************************************************************************
  **********************************************************************************/
-#define LED_BUILTIN 2 // Pin D2 mapped to pin GPIO2/ADC12 of ESP32, control on-board LED
+//#define LED_BUILTIN 2 // Pin D2 mapped to pin GPIO2/ADC12 of ESP32, control on-board LED
 
 #define PIN_D0 0 // Pin D0 mapped to pin GPIO0/BOOT/ADC11/TOUCH1 of ESP32
 #define PIN_D1 1 // Pin D1 mapped to pin GPIO1/TX0 of ESP32
@@ -144,15 +144,22 @@ void notifyClients(String state) {
 
 void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
+  
   if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
     data[len] = 0;
     message = (char*)data;
+    int indexOfFirst = message.indexOf("&");
+    int indexOfSec   = message.indexOf("&",indexOfFirst+1);
+
     steps = message.substring(0, message.indexOf("&"));
-    direction = message.substring(message.indexOf("&")+1, message.length());
+    direction = message.substring(indexOfFirst+1, indexOfSec);
+    timeOn = message.substring(indexOfSec+1, message.length());
     Serial.print("steps");
     Serial.println(steps);
     Serial.print("direction");
     Serial.println(direction);
+    Serial.print("timeOn");
+    Serial.println(timeOn);
     notifyClients(direction);
     newRequest = true;
   }
