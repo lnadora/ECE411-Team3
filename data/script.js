@@ -44,7 +44,8 @@ function submitForm(){
     }
     
     var steps = document.getElementById("steps").value;
-    websocket.send(steps+"&"+direction);
+    var timeOn = document.getElementById("timeOn").value;
+    websocket.send(steps+"&"+direction+"&"+timeOn);
 }
 
 function onMessage(event) {

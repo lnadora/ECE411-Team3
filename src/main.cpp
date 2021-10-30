@@ -5,6 +5,7 @@
  **********************************************************************************/
 
 #include <Arduino.h>
+#include <stdlib.h>
 #include <stepper.h>
 #include <FS.h>
 #include <WiFi.h>
@@ -13,7 +14,8 @@
 #include <ESPAsyncWebServer.h>
 #include <SPIFFS.h>
 #include <DHT.h>
-
+#include <U8g2lib.h>
+#include <string.h>
 
 
 /***********************************************************************************
@@ -86,6 +88,32 @@ DNSServer dnsServer;
 
 /***********************************************************************************
  ***********************************************************************************
+                                      OLED Setup
+ ***********************************************************************************
+ **********************************************************************************/
+#ifdef U8X8_HAVE_HW_SPI
+#include <SPI.h>
+#endif
+#ifdef U8X8_HAVE_HW_I2C
+#include <Wire.h>
+#endif
+
+U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ PIN_SCL, /* data=*/ PIN_SDA, /* reset=*/ U8X8_PIN_NONE);
+
+
+
+
+/***********************************************************************************
+ ***********************************************************************************
+                                  Button Setup
+ ***********************************************************************************
+ **********************************************************************************/
+#define BUTTON_A PIN_D26
+#define BUTTON_B PIN_D25
+
+
+/***********************************************************************************
+ ***********************************************************************************
                                   Webserver setup
  ***********************************************************************************
  **********************************************************************************/
@@ -96,6 +124,7 @@ String message = "";
 //Variables to save values from HTML form
 String direction ="STOP";
 String steps;
+String timeOn;
 
 bool newRequest = false;
 
@@ -187,14 +216,35 @@ DHT dht(DHTPIN, DHTTYPE);
 void setup() {
   // begin serial
   Serial.begin(115200);  while (!Serial); delay(200);
+
+  //Setup Display
+  u8g2.begin();
+
+
   //Setup WiFi
   Serial.print("\nStarting Async_AutoConnect_ESP32_minimal on " + String(ARDUINO_BOARD)); Serial.println(ESP_ASYNC_WIFIMANAGER_VERSION);
   ESPAsync_WiFiManager ESPAsync_wifiManager(&webServer, &dnsServer, "Async_AutoConnect");
   //ESPAsync_wifiManager.resetSettings();   //reset saved settings
   ESPAsync_wifiManager.setAPStaticIPConfig(IPAddress(192,168,132,1), IPAddress(192,168,132,1), IPAddress(255,255,255,0));
   ESPAsync_wifiManager.autoConnect("AutoConnectAP");
+  u8g2.clearBuffer();					// clear the internal memory
+  u8g2.setFont(u8g2_font_ncenB08_tr);	// choose a suitable font
+  u8g2.drawStr(0,10,"Connect to AP!");	// write something to the internal memory
+  u8g2.drawStr(0,20, "192.168.132.1");
+  u8g2.sendBuffer();					// transfer internal memory to the display
   Serial.print("\nConnect to the AutoConnectAP Access Point and point your browser to:192.168.132.1\n");
-  if (WiFi.status() == WL_CONNECTED) { Serial.print(F("Connected. Local IP: ")); Serial.println(WiFi.localIP()); }
+  delay(2000);
+  if (WiFi.status() == WL_CONNECTED) { 
+    
+    Serial.print(F("Connected. Local IP: ")); 
+    Serial.println(WiFi.localIP()); 
+    u8g2.clearBuffer();					// clear the internal memory
+    u8g2.setFont(u8g2_font_ncenB08_tr);	// choose a suitable font
+    u8g2.drawStr(0,10,"Connected to Wifi!");	// write something to the internal memory
+    u8g2.drawStr(0,20, WiFi.localIP().toString().c_str());
+    u8g2.sendBuffer();					// transfer internal memory to the display
+  
+  }
   else { Serial.println(ESPAsync_wifiManager.getStatus(WiFi.status())); }
 
   //setup websocket
@@ -224,6 +274,13 @@ void setup() {
  **********************************************************************************/
 void loop() {
   
+  //u8g2.clearBuffer();					// clear the internal memory
+  //u8g2.setFont(u8g2_font_ncenB08_tr);	// choose a suitable font
+  //u8g2.drawStr(0,10,"Hello World!");	// write something to the internal memory
+  //u8g2.sendBuffer();					// transfer internal memory to the display
+  //delay(1000);  
+
+
   if (newRequest){
     if (direction == "CW"){
       myStepper.step(steps.toInt());
@@ -258,10 +315,17 @@ void loop() {
   float hif = dht.computeHeatIndex(f, h);
   // Compute heat index in Celsius (isFahreheit = false)
   float hic = dht.computeHeatIndex(t, h, false);
-
+  char str[25];
+  u8g2.clearBuffer();
   Serial.print(F("Humidity: "));
+  u8g2.drawStr(0,10,"Humidity: ");
+  dtostrf(h,3,2,str);
+  u8g2.drawStr(100,10,str);
   Serial.print(h);
   Serial.print(F("%  Temperature: "));
+  u8g2.drawStr(0,20,"Temperature: ");
+  dtostrf(f,3,2,str);
+  u8g2.drawStr(100,20,str);
   Serial.print(t);
   Serial.print(F("°C "));
   Serial.print(f);
@@ -270,5 +334,7 @@ void loop() {
   Serial.print(F("°C "));
   Serial.print(hif);
   Serial.println(F("°F"));
+
+  u8g2.sendBuffer();
 
 }
