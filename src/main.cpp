@@ -16,6 +16,7 @@
 #include <DHT.h>
 #include <U8g2lib.h>
 #include <string.h>
+#include <WiFiUdp.h>
 
 
 /***********************************************************************************
@@ -85,6 +86,13 @@
  **********************************************************************************/
 AsyncWebServer webServer(80);
 DNSServer dnsServer;
+
+/***********************************************************************************
+ ***********************************************************************************
+                                      NTP Setup
+ ***********************************************************************************
+ **********************************************************************************/
+
 
 /***********************************************************************************
  ***********************************************************************************
@@ -210,6 +218,7 @@ const int stepsPerRevolution = 2048;
 Stepper myStepper(stepsPerRevolution, IN1, IN3, IN2, IN4);
 
 
+
 /***********************************************************************************
  ***********************************************************************************
                                   DHT11 Setup
@@ -230,9 +239,16 @@ DHT dht(DHTPIN, DHTTYPE);
 void setup() {
   // begin serial
   Serial.begin(115200);  while (!Serial); delay(200);
+  
+
 
   //Setup Display
   u8g2.begin();
+
+  //Setup Button
+
+  pinMode(BUTTON_A,INPUT_PULLDOWN);
+  pinMode(BUTTON_B,INPUT_PULLDOWN);
 
 
   //Setup WiFi
@@ -277,6 +293,8 @@ void setup() {
   server.serveStatic("/", SPIFFS, "/");
 
   server.begin();
+
+  
 }
 
 
@@ -287,7 +305,8 @@ void setup() {
  ***********************************************************************************
  **********************************************************************************/
 void loop() {
-  
+  int buttonStateA= 0;
+  int buttonStateB= 0;
   //u8g2.clearBuffer();					// clear the internal memory
   //u8g2.setFont(u8g2_font_ncenB08_tr);	// choose a suitable font
   //u8g2.drawStr(0,10,"Hello World!");	// write something to the internal memory
@@ -308,8 +327,12 @@ void loop() {
   }
   ws.cleanupClients();
 
+  if(digitalRead(BUTTON_A) == LOW)  myStepper.step(500);
+  if(digitalRead(BUTTON_B) == LOW)  myStepper.step(-500);
   // Wait a few seconds between measurements.
   delay(2000);
+
+
 
   // Reading temperature or humidity takes about 250 milliseconds!
   // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
