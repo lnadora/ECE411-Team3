@@ -237,6 +237,8 @@ Stepper myStepper(stepsPerRevolution, IN1, IN3, IN2, IN4);
 
 DHT dht(DHTPIN, DHTTYPE);
 
+#define DHT_UPDATE_DELAY 5
+
 /***********************************************************************************
  ***********************************************************************************
                                   setup Function
@@ -323,7 +325,9 @@ void loop()
 {
   //int buttonStateA = 0;
   //int buttonStateB = 0;
+  // current time is the current time pulled from timeClient.getEpochTime();
   int currentTime;
+  //The updateTime is going to be the delay has expired.
   static int updateTime = 0;
 
   // Time client setup
@@ -413,6 +417,6 @@ void loop()
     Serial.println(F("°F"));
     u8g2.sendBuffer();
     currentTime = timeClient.getEpochTime();
-    updateTime = currentTime + 5;
+    updateTime = currentTime + DHT_UPDATE_DELAY;
   }
 }
