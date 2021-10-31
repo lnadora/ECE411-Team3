@@ -17,7 +17,7 @@
 #include <U8g2lib.h>
 #include <string.h>
 #include <WiFiUdp.h>
-
+#include <NTPClient.h>
 
 /***********************************************************************************
  ***********************************************************************************
@@ -60,8 +60,8 @@
 #define PIN_D33 33 // Pin D33 mapped to pin GPIO33/ADC5/TOUCH8 of ESP32
 #define PIN_D34 34 // Pin D34 mapped to pin GPIO34/ADC6 of ESP32
 
-//Only GPIO pin < 34 can be used as output. Pins >= 34 can be only inputs
-//See .../cores/esp32/esp32-hal-gpio.h/c
+// Only GPIO pin < 34 can be used as output. Pins >= 34 can be only inputs
+// See .../cores/esp32/esp32-hal-gpio.h/c
 //#define digitalPinIsValid(pin)          ((pin) < 40 && esp32_gpioMux[(pin)].reg)
 //#define digitalPinCanOutput(pin)        ((pin) < 34 && esp32_gpioMux[(pin)].reg)
 //#define digitalPinToRtcPin(pin)         (((pin) < 40)?esp32_gpioMux[(pin)].rtc:-1)
@@ -92,7 +92,12 @@ DNSServer dnsServer;
                                       NTP Setup
  ***********************************************************************************
  **********************************************************************************/
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP);
 
+String formattedDate;
+String dayStamp;
+String timeStamp;
 
 /***********************************************************************************
  ***********************************************************************************
@@ -106,10 +111,7 @@ DNSServer dnsServer;
 #include <Wire.h>
 #endif
 
-U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ PIN_SCL, /* data=*/ PIN_SDA, /* reset=*/ U8X8_PIN_NONE);
-
-
-
+U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, /* clock=*/PIN_SCL, /* data=*/PIN_SDA, /* reset=*/U8X8_PIN_NONE);
 
 /***********************************************************************************
  ***********************************************************************************
@@ -118,7 +120,6 @@ U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ PIN_SCL, /* dat
  **********************************************************************************/
 #define BUTTON_A PIN_D26
 #define BUTTON_B PIN_D25
-
 
 /***********************************************************************************
  ***********************************************************************************
@@ -129,46 +130,52 @@ bool ledState = 0;
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 String message = "";
-//Variables to save values from HTML form
-String direction ="STOP";
+// Variables to save values from HTML form
+String direction = "STOP";
 String steps;
 String timeOn;
 
 bool newRequest = false;
 
 // Initialize SPIFFS
-void initSPIFFS() {
-  if (!SPIFFS.begin(true)) {
+void initSPIFFS()
+{
+  if (!SPIFFS.begin(true))
+  {
     Serial.println("An error has occurred while mounting SPIFFS");
   }
-  else{
+  else
+  {
     Serial.println("SPIFFS mounted successfully");
   }
 }
 
-void notifyClients(String state) {
+void notifyClients(String state)
+{
   ws.textAll(state);
 }
 
-void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
-  AwsFrameInfo *info = (AwsFrameInfo*)arg;
-  
-  if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
+void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
+{
+  AwsFrameInfo *info = (AwsFrameInfo *)arg;
+
+  if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT)
+  {
     data[len] = 0;
-    //message is the data sent to the ESP when the 'submit' button is pressed
-    message = (char*)data;
-    //right now we have three variables we recieve in the message string
-    //they are seperated by an "&" 
-    //indexOfFirst is the position of the first "&"
-    //indexOfSec is the positon of the second "&"
+    // message is the data sent to the ESP when the 'submit' button is pressed
+    message = (char *)data;
+    // right now we have three variables we recieve in the message string
+    // they are seperated by an "&"
+    // indexOfFirst is the position of the first "&"
+    // indexOfSec is the positon of the second "&"
     int indexOfFirst = message.indexOf("&");
-    int indexOfSec   = message.indexOf("&",indexOfFirst+1);
-    //steps is the value between the beginning of the string and "&"
+    int indexOfSec = message.indexOf("&", indexOfFirst + 1);
+    // steps is the value between the beginning of the string and "&"
     steps = message.substring(0, message.indexOf("&"));
-    //direction is the value between the first "&" and second
-    direction = message.substring(indexOfFirst+1, indexOfSec);
-    //timeOn is the value between the second "&" and the end of the string
-    timeOn = message.substring(indexOfSec+1, message.length());
+    // direction is the value between the first "&" and second
+    direction = message.substring(indexOfFirst + 1, indexOfSec);
+    // timeOn is the value between the second "&" and the end of the string
+    timeOn = message.substring(indexOfSec + 1, message.length());
     Serial.print("steps");
     Serial.println(steps);
     Serial.print("direction");
@@ -180,26 +187,29 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   }
 }
 
-void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
-  switch (type) {
-    case WS_EVT_CONNECT:
-      Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
-      //Notify client of motor current state when it first connects
-      notifyClients(direction);
-      break;
-    case WS_EVT_DISCONNECT:
-      Serial.printf("WebSocket client #%u disconnected\n", client->id());
-      break;
-    case WS_EVT_DATA:
-        handleWebSocketMessage(arg, data, len);
-        break;
-    case WS_EVT_PONG:
-    case WS_EVT_ERROR:
-     break;
+void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len)
+{
+  switch (type)
+  {
+  case WS_EVT_CONNECT:
+    Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
+    // Notify client of motor current state when it first connects
+    notifyClients(direction);
+    break;
+  case WS_EVT_DISCONNECT:
+    Serial.printf("WebSocket client #%u disconnected\n", client->id());
+    break;
+  case WS_EVT_DATA:
+    handleWebSocketMessage(arg, data, len);
+    break;
+  case WS_EVT_PONG:
+  case WS_EVT_ERROR:
+    break;
   }
 }
 
-void initWebSocket() {
+void initWebSocket()
+{
   ws.onEvent(onEvent);
   server.addHandler(&ws);
 }
@@ -217,109 +227,136 @@ const int stepsPerRevolution = 2048;
 
 Stepper myStepper(stepsPerRevolution, IN1, IN3, IN2, IN4);
 
-
-
 /***********************************************************************************
  ***********************************************************************************
                                   DHT11 Setup
  ***********************************************************************************
  **********************************************************************************/
-#define DHTTYPE DHT11   // DHT 11
-#define DHTPIN PIN_D27  // Pin 27
+#define DHTTYPE DHT11  // DHT 11
+#define DHTPIN PIN_D27 // Pin 27
 
 DHT dht(DHTPIN, DHTTYPE);
-
-
 
 /***********************************************************************************
  ***********************************************************************************
                                   setup Function
  ***********************************************************************************
  **********************************************************************************/
-void setup() {
+void setup()
+{
   // begin serial
-  Serial.begin(115200);  while (!Serial); delay(200);
-  
+  Serial.begin(115200);
+  while (!Serial)
+    ;
+  delay(200);
 
-
-  //Setup Display
+  // Setup Display
   u8g2.begin();
 
-  //Setup Button
+  // Setup Button
 
-  pinMode(BUTTON_A,INPUT_PULLDOWN);
-  pinMode(BUTTON_B,INPUT_PULLDOWN);
+  pinMode(BUTTON_A, INPUT_PULLDOWN);
+  pinMode(BUTTON_B, INPUT_PULLDOWN);
 
-
-  //Setup WiFi
-  Serial.print("\nStarting Async_AutoConnect_ESP32_minimal on " + String(ARDUINO_BOARD)); Serial.println(ESP_ASYNC_WIFIMANAGER_VERSION);
+  // Setup WiFi
+  Serial.print("\nStarting Async_AutoConnect_ESP32_minimal on " + String(ARDUINO_BOARD));
+  Serial.println(ESP_ASYNC_WIFIMANAGER_VERSION);
   ESPAsync_WiFiManager ESPAsync_wifiManager(&webServer, &dnsServer, "Async_AutoConnect");
-  //ESPAsync_wifiManager.resetSettings();   //reset saved settings
-  ESPAsync_wifiManager.setAPStaticIPConfig(IPAddress(192,168,132,1), IPAddress(192,168,132,1), IPAddress(255,255,255,0));
+  // ESPAsync_wifiManager.resetSettings();   //reset saved settings
+  ESPAsync_wifiManager.setAPStaticIPConfig(IPAddress(192, 168, 132, 1), IPAddress(192, 168, 132, 1), IPAddress(255, 255, 255, 0));
   ESPAsync_wifiManager.autoConnect("AutoConnectAP");
-  u8g2.clearBuffer();					// clear the internal memory
-  u8g2.setFont(u8g2_font_ncenB08_tr);	// choose a suitable font
-  u8g2.drawStr(0,10,"Connect to AP!");	// write something to the internal memory
-  u8g2.drawStr(0,20, "192.168.132.1");
-  u8g2.sendBuffer();					// transfer internal memory to the display
+  u8g2.clearBuffer();                    // clear the internal memory
+  u8g2.setFont(u8g2_font_ncenB08_tr);    // choose a suitable font
+  u8g2.drawStr(0, 10, "Connect to AP!"); // write something to the internal memory
+  u8g2.drawStr(0, 20, "192.168.132.1");
+  u8g2.sendBuffer(); // transfer internal memory to the display
   Serial.print("\nConnect to the AutoConnectAP Access Point and point your browser to:192.168.132.1\n");
   delay(2000);
-  if (WiFi.status() == WL_CONNECTED) { 
-    
-    Serial.print(F("Connected. Local IP: ")); 
-    Serial.println(WiFi.localIP()); 
-    u8g2.clearBuffer();					// clear the internal memory
-    u8g2.setFont(u8g2_font_ncenB08_tr);	// choose a suitable font
-    u8g2.drawStr(0,10,"Connected to Wifi!");	// write something to the internal memory
-    u8g2.drawStr(0,20, WiFi.localIP().toString().c_str());
-    u8g2.sendBuffer();					// transfer internal memory to the display
-  
-  }
-  else { Serial.println(ESPAsync_wifiManager.getStatus(WiFi.status())); }
+  if (WiFi.status() == WL_CONNECTED)
+  {
 
-  //setup websocket
+    Serial.print(F("Connected. Local IP: "));
+    Serial.println(WiFi.localIP());
+    u8g2.clearBuffer();                        // clear the internal memory
+    u8g2.setFont(u8g2_font_ncenB08_tr);        // choose a suitable font
+    u8g2.drawStr(0, 10, "Connected to Wifi!"); // write something to the internal memory
+    u8g2.drawStr(0, 20, WiFi.localIP().toString().c_str());
+    u8g2.sendBuffer(); // transfer internal memory to the display
+  }
+  else
+  {
+    Serial.println(ESPAsync_wifiManager.getStatus(WiFi.status()));
+  }
+
+  // setup websocket
   initWebSocket();
-  //setup SPIFFS
+  // setup SPIFFS
   initSPIFFS();
-  //set the stepper speed
+  // set the stepper speed
   myStepper.setSpeed(5);
-  //Setup DHT
+  // Setup DHT
   dht.begin();
   // Web Server Root URL
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/index.html", "text/html");
-  });
-  
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
+            { request->send(SPIFFS, "/index.html", "text/html"); });
+
   server.serveStatic("/", SPIFFS, "/");
 
   server.begin();
 
-  
+  // Setup for time
+  timeClient.begin();
+  // Set offset time in seconds to adjust for your timezone, for example:
+  // GMT +1 = 3600
+  // GMT +8 = 28800
+  // GMT -1 = -3600
+  // GMT 0 = 0
+  timeClient.setTimeOffset(-28800);
 }
-
-
 
 /***********************************************************************************
  ***********************************************************************************
                                   loop Function
  ***********************************************************************************
  **********************************************************************************/
-void loop() {
-  int buttonStateA= 0;
-  int buttonStateB= 0;
-  //u8g2.clearBuffer();					// clear the internal memory
-  //u8g2.setFont(u8g2_font_ncenB08_tr);	// choose a suitable font
-  //u8g2.drawStr(0,10,"Hello World!");	// write something to the internal memory
-  //u8g2.sendBuffer();					// transfer internal memory to the display
-  //delay(1000);  
+void loop()
+{
+  //int buttonStateA = 0;
+  //int buttonStateB = 0;
+  int currentTime;
+  static int updateTime = 0;
 
+  // Time client setup
+  while (!timeClient.update())
+  {
+    timeClient.forceUpdate();
+  }
 
-  if (newRequest){
-    if (direction == "CW"){
+  /*   // The formattedDate comes with the following format:
+    // 2018-05-28T16:00:13Z
+    // We need to extract date and time
+    formattedDate = timeClient.getFormattedDate();
+    Serial.println(formattedDate);
+
+    // Extract date
+    int splitT = formattedDate.indexOf("T");
+    dayStamp = formattedDate.substring(0, splitT);
+    Serial.print("DATE: ");
+    Serial.println(dayStamp);
+    // Extract time
+    timeStamp = formattedDate.substring(splitT+1, formattedDate.length()-1);
+    Serial.print("HOUR: ");
+    Serial.println(timeStamp); */
+
+  if (newRequest)
+  {
+    if (direction == "CW")
+    {
       myStepper.step(steps.toInt());
       Serial.print("CW");
     }
-    else{
+    else
+    {
       myStepper.step(-steps.toInt());
     }
     newRequest = false;
@@ -327,51 +364,55 @@ void loop() {
   }
   ws.cleanupClients();
 
-  if(digitalRead(BUTTON_A) == LOW)  myStepper.step(500);
-  if(digitalRead(BUTTON_B) == LOW)  myStepper.step(-500);
+  if (digitalRead(BUTTON_A) == LOW)
+    myStepper.step(100);
+  if (digitalRead(BUTTON_B) == LOW)
+    myStepper.step(-100);
   // Wait a few seconds between measurements.
-  delay(2000);
+  
 
+  if (timeClient.getEpochTime() > updateTime)
+  {
+    // Reading temperature or humidity takes about 250 milliseconds!
+    // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
+    float h = dht.readHumidity();
+    // Read temperature as Celsius (the default)
+    float t = dht.readTemperature();
+    // Read temperature as Fahrenheit (isFahrenheit = true)
+    float f = dht.readTemperature(true);
 
+    // Check if any reads failed and exit early (to try again).
+    if (isnan(h) || isnan(t) || isnan(f))
+    {
+      Serial.println(F("Failed to read from DHT sensor!"));
+      return;
+    }
 
-  // Reading temperature or humidity takes about 250 milliseconds!
-  // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-  float h = dht.readHumidity();
-  // Read temperature as Celsius (the default)
-  float t = dht.readTemperature();
-  // Read temperature as Fahrenheit (isFahrenheit = true)
-  float f = dht.readTemperature(true);
-
-  // Check if any reads failed and exit early (to try again).
-  if (isnan(h) || isnan(t) || isnan(f)) {
-    Serial.println(F("Failed to read from DHT sensor!"));
-    return;
+    // Compute heat index in Fahrenheit (the default)
+    float hif = dht.computeHeatIndex(f, h);
+    // Compute heat index in Celsius (isFahreheit = false)
+    float hic = dht.computeHeatIndex(t, h, false);
+    char str[25];
+    u8g2.clearBuffer();
+    Serial.print(F("Humidity: "));
+    u8g2.drawStr(0, 10, "Humidity: ");
+    dtostrf(h, 3, 2, str);
+    u8g2.drawStr(100, 10, str);
+    Serial.print(h);
+    Serial.print(F("%  Temperature: "));
+    u8g2.drawStr(0, 20, "Temperature: ");
+    dtostrf(f, 3, 2, str);
+    u8g2.drawStr(100, 20, str);
+    Serial.print(t);
+    Serial.print(F("°C "));
+    Serial.print(f);
+    Serial.print(F("°F  Heat index: "));
+    Serial.print(hic);
+    Serial.print(F("°C "));
+    Serial.print(hif);
+    Serial.println(F("°F"));
+    u8g2.sendBuffer();
+    currentTime = timeClient.getEpochTime();
+    updateTime = currentTime + 5;
   }
-
-  // Compute heat index in Fahrenheit (the default)
-  float hif = dht.computeHeatIndex(f, h);
-  // Compute heat index in Celsius (isFahreheit = false)
-  float hic = dht.computeHeatIndex(t, h, false);
-  char str[25];
-  u8g2.clearBuffer();
-  Serial.print(F("Humidity: "));
-  u8g2.drawStr(0,10,"Humidity: ");
-  dtostrf(h,3,2,str);
-  u8g2.drawStr(100,10,str);
-  Serial.print(h);
-  Serial.print(F("%  Temperature: "));
-  u8g2.drawStr(0,20,"Temperature: ");
-  dtostrf(f,3,2,str);
-  u8g2.drawStr(100,20,str);
-  Serial.print(t);
-  Serial.print(F("°C "));
-  Serial.print(f);
-  Serial.print(F("°F  Heat index: "));
-  Serial.print(hic);
-  Serial.print(F("°C "));
-  Serial.print(hif);
-  Serial.println(F("°F"));
-
-  u8g2.sendBuffer();
-
 }
