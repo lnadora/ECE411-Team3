@@ -4,3 +4,6 @@
 .vscode/launch.json
 .vscode/ipch
 HeaterApp.code-workspace
+src/main.cpp
+.pio/build/esp32doit-devkit-v1/.sconsign39.dblite
+.pio/build/esp32doit-devkit-v1/firmware.elf

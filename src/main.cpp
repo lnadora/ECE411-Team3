@@ -137,7 +137,7 @@ String timeOn;
 
 bool newRequest = false;
 
-// Initialize SPIFFS
+// Initialize SPIFFS (SPIFFS is the file system the ESP32 uses)
 void initSPIFFS()
 {
   if (!SPIFFS.begin(true))
@@ -176,12 +176,14 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
     direction = message.substring(indexOfFirst + 1, indexOfSec);
     // timeOn is the value between the second "&" and the end of the string
     timeOn = message.substring(indexOfSec + 1, message.length());
+    //printout information recived from website
     Serial.print("steps");
     Serial.println(steps);
     Serial.print("direction");
     Serial.println(direction);
     Serial.print("timeOn");
     Serial.println(timeOn);
+    //tell the server that the motor is spinning to animate the gear icon
     notifyClients(direction);
     newRequest = true;
   }
@@ -219,12 +221,14 @@ void initWebSocket()
                                   Stepper Motor initialize
  ***********************************************************************************
  **********************************************************************************/
+//28BYJ-48 uses 2048 setps per revolution
 const int stepsPerRevolution = 2048;
 #define IN1 PIN_D19
 #define IN2 PIN_D18
 #define IN3 PIN_D5
 #define IN4 PIN_D17
 
+//Set up stepper motor with correct wire configuration IN1, IN3, IN2, IN4
 Stepper myStepper(stepsPerRevolution, IN1, IN3, IN2, IN4);
 
 /***********************************************************************************
@@ -235,8 +239,10 @@ Stepper myStepper(stepsPerRevolution, IN1, IN3, IN2, IN4);
 #define DHTTYPE DHT11  // DHT 11
 #define DHTPIN PIN_D27 // Pin 27
 
+//setup the DHT sensor
 DHT dht(DHTPIN, DHTTYPE);
 
+//Define a time (in seconds) between sensor reads
 #define DHT_UPDATE_DELAY 5
 
 /***********************************************************************************
@@ -250,6 +256,7 @@ void setup()
   Serial.begin(115200);
   while (!Serial)
     ;
+  // delay to make sure Serial is connected before next operation  
   delay(200);
 
   // Setup Display
@@ -303,7 +310,7 @@ void setup()
             { request->send(SPIFFS, "/index.html", "text/html"); });
 
   server.serveStatic("/", SPIFFS, "/");
-
+  //Starts the webserver on the ESP device
   server.begin();
 
   // Setup for time
@@ -326,8 +333,15 @@ void loop()
   //int buttonStateA = 0;
   //int buttonStateB = 0;
   // current time is the current time pulled from timeClient.getEpochTime();
-  int currentTime;
+  //int currentTime;
+  
+  
   //The updateTime is going to be the delay has expired.
+  // It is a static int set at zero because we want it to initally
+  // but we don't want it set at zero every time we enter the loop.
+  // It doesn't have to be zero, but it needs to be less than the
+  // current Epoch time because we want to trigger the read temp settings
+  // the first time.
   static int updateTime = 0;
 
   // Time client setup
@@ -367,15 +381,19 @@ void loop()
     notifyClients("stop");
   }
   ws.cleanupClients();
-
+  // To prevent watchdog error, the program will make 100 steps each
+  //cycle the program makes through loop().  When button is released, 
+  //the motor stops moving.
   if (digitalRead(BUTTON_A) == LOW)
     myStepper.step(100);
   if (digitalRead(BUTTON_B) == LOW)
     myStepper.step(-100);
-  // Wait a few seconds between measurements.
   
-
-  if (timeClient.getEpochTime() > updateTime)
+  
+  // Wait a few seconds between measurements.
+  //Epoch time is the date in one long integer which makes it easy to comare time
+  //between the last sample time and the current time
+    if (timeClient.getEpochTime() > updateTime)
   {
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
@@ -416,7 +434,9 @@ void loop()
     Serial.print(hif);
     Serial.println(F("°F"));
     u8g2.sendBuffer();
-    currentTime = timeClient.getEpochTime();
-    updateTime = currentTime + DHT_UPDATE_DELAY;
+
+    //Set current time to
+    //currentTime = timeClient.getEpochTime();
+    updateTime = timeClient.getEpochTime() + DHT_UPDATE_DELAY;
   }
 }
