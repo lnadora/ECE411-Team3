@@ -18,6 +18,7 @@
 #include <string.h>
 #include <WiFiUdp.h>
 #include <NTPClient.h>
+#include <esp_now.h>
 
 /***********************************************************************************
  ***********************************************************************************
@@ -120,6 +121,8 @@ U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, /* clock=*/PIN_SCL, /* data
  **********************************************************************************/
 #define BUTTON_A PIN_D26
 #define BUTTON_B PIN_D25
+#define BUTTON_C PIN_D33
+#define BUTTON_D PIN_D14
 
 /***********************************************************************************
  ***********************************************************************************
@@ -245,6 +248,9 @@ DHT dht(DHTPIN, DHTTYPE);
 // Define a time (in seconds) between sensor reads
 #define DHT_UPDATE_DELAY 5
 
+int nowTemp = 0;
+int highTemp, lowTemp;
+
 /***********************************************************************************
  ***********************************************************************************
                                   setup Function
@@ -267,6 +273,7 @@ void setup()
   pinMode(BUTTON_A, INPUT_PULLDOWN);
   pinMode(BUTTON_B, INPUT_PULLDOWN);
 
+  //if(digitalRead(BUTTON_A)){
   // Setup WiFi
   Serial.print("\nStarting Async_AutoConnect_ESP32_minimal on " + String(ARDUINO_BOARD));
   Serial.println(ESP_ASYNC_WIFIMANAGER_VERSION);
@@ -296,6 +303,7 @@ void setup()
   {
     Serial.println(ESPAsync_wifiManager.getStatus(WiFi.status()));
   }
+  //}
 
   // setup websocket
   initWebSocket();
@@ -320,6 +328,8 @@ void setup()
   // GMT +8 = 28800
   // GMT -1 = -3600
   // GMT 0 = 0
+  // PST is GMT -8
+  //  3600*-8 = -28800
   timeClient.setTimeOffset(-28800);
 }
 
@@ -332,6 +342,8 @@ void loop()
 {
   // int buttonStateA = 0;
   // int buttonStateB = 0;
+
+
   //  current time is the current time pulled from timeClient.getEpochTime();
   // int currentTime;
 
@@ -389,7 +401,7 @@ void loop()
     myStepper.step(-100);
 
   // Wait a few seconds between measurements.
-  // Epoch time is the date in one long integer which makes it easy to comare time
+  // Epoch time is the date in one long integer which makes it easy to compare time
   // between the last sample time and the current time
   if (timeClient.getEpochTime() > updateTime)
   {
