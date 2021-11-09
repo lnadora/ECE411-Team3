@@ -457,10 +457,12 @@ void loop()
     if(nowTemp < lowTemp && !heatOn)
     {
       myStepper.step(-1000);
+      heatOn = true;
     }
-    if(nowTemp > highTemp && !heatOn)
+    if(nowTemp > highTemp && heatOn)
     {
       myStepper.step(1000);
+      heatOn = false;
     }
   }
 
