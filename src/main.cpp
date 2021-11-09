@@ -122,7 +122,7 @@ U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, /* clock=*/PIN_SCL, /* data
 #define BUTTON_A PIN_D26
 #define BUTTON_B PIN_D25
 #define BUTTON_C PIN_D33
-#define BUTTON_D PIN_D14
+#define BUTTON_D PIN_D32
 
 /***********************************************************************************
  ***********************************************************************************
@@ -250,8 +250,8 @@ DHT dht(DHTPIN, DHTTYPE);
 #define DHT_UPDATE_DELAY 5
 
 float nowTemp = 0;
-float highTemp = 99.00;
-float lowTemp = 25.00;
+float highTemp = 80.00;
+float lowTemp = 75.00;
 
 
 /***********************************************************************************
@@ -273,8 +273,10 @@ void setup()
 
   // Setup Button
 
-  pinMode(BUTTON_A, INPUT_PULLDOWN);
-  pinMode(BUTTON_B, INPUT_PULLDOWN);
+  pinMode(BUTTON_A, INPUT_PULLUP);
+  pinMode(BUTTON_B, INPUT_PULLUP);
+  pinMode(BUTTON_C, INPUT_PULLUP);
+  pinMode(BUTTON_D, INPUT_PULLUP);
 
   //if(digitalRead(BUTTON_A)){
   // Setup WiFi
@@ -405,6 +407,13 @@ void loop()
   if (digitalRead(BUTTON_B) == LOW)
     myStepper.step(-100);
 
+  if (digitalRead(BUTTON_C) == LOW){
+    Serial.print("Button C pressed");
+  }
+
+  if (digitalRead(BUTTON_D) == LOW){
+    Serial.print("Button D pressed");
+  }
   // Wait a few seconds between measurements.
   // Epoch time is the date in one long integer which makes it easy to compare time
   // between the last sample time and the current time
