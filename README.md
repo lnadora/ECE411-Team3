@@ -15,3 +15,37 @@ Once connected the device will present an IP address where the website is hosted
 
 
 
+Current program functionality:
+    - Connects to the internet
+    - Retrieves time from NIST server
+    - Retrives temp and humidity from the sensor
+    -- Samples every x seconds set by DHT_UPDATE_DELAY (currently every 5s)
+    --- This functionality is currently based on the NIST time from the server.
+    --- Should be changed to just using millis()
+    - Prints temp and humidity on the OLED
+    -- Uses U9g2 library.
+    --- lots of examples in the examples folder.  
+    --- left some example code in the program commented out
+    - Buttons move the stepper motor
+    -- BUTTON_A moves the stepper clockwise
+    -- BUTTON_B moves the stepper counter-clockwise
+    -- Buttons labeled as BUTTON_A, BUTTON_B, BUTTON_C, BUTTON_D
+    --- Button pins are 26,25,33,14 respectivly
+    - Website can control stepper motor
+    -- Through some exprimenting it was found how the data is transmitted
+    --- This is documented in the .js file and the .cpp file.
+    
+Needs to be done:
+    -Menu
+    -- Setup
+    --- set time
+    --- set leave time
+    --- set arrive time
+    --- set range for stepper motor to turn heater on/off
+    -- Move stepper motor
+    --- Add/subtract movement from the stepper range variable
+    -- Current Temp/Humidity
+    --- Display the current temp and humidity 
+    - Change the timing function to millis()
+    - Retrive all data from website
+    
