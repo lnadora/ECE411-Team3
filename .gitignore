@@ -14,3 +14,4 @@ src/main.cpp
 .pio/build/esp32doit-devkit-v1/firmware.bin
 .pio/build/esp32doit-devkit-v1/firmware.elf
 /.pio/build
+.pio/build/esp32doit-devkit-v1/.sconsign39.dblite
