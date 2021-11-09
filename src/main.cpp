@@ -233,6 +233,7 @@ const int stepsPerRevolution = 2048;
 
 // Set up stepper motor with correct wire configuration IN1, IN3, IN2, IN4
 Stepper myStepper(stepsPerRevolution, IN1, IN3, IN2, IN4);
+bool heatOn = false;
 
 /***********************************************************************************
  ***********************************************************************************
@@ -248,8 +249,10 @@ DHT dht(DHTPIN, DHTTYPE);
 // Define a time (in seconds) between sensor reads
 #define DHT_UPDATE_DELAY 5
 
-int nowTemp = 0;
-int highTemp, lowTemp;
+float nowTemp = 0;
+float highTemp = 99.00;
+float lowTemp = 25.00;
+
 
 /***********************************************************************************
  ***********************************************************************************
@@ -377,6 +380,8 @@ void loop()
     Serial.print("HOUR: ");
     Serial.println(timeStamp); */
 
+  
+
   if (newRequest)
   {
     if (direction == "CW")
@@ -412,7 +417,7 @@ void loop()
     float t = dht.readTemperature();
     // Read temperature as Fahrenheit (isFahrenheit = true)
     float f = dht.readTemperature(true);
-
+    nowTemp = f;
     // Check if any reads failed and exit early (to try again).
     if (isnan(h) || isnan(t) || isnan(f))
     {
@@ -444,9 +449,20 @@ void loop()
     Serial.print(hif);
     Serial.println(F("°F"));
     u8g2.sendBuffer();
-
+    
     // Set current time to
     // currentTime = timeClient.getEpochTime();
     updateTime = timeClient.getEpochTime() + DHT_UPDATE_DELAY;
+
+    if(nowTemp < lowTemp && !heatOn)
+    {
+      myStepper.step(-1000);
+    }
+    if(nowTemp > highTemp && !heatOn)
+    {
+      myStepper.step(1000);
+    }
   }
+
+
 }
