@@ -16,6 +16,7 @@ Once connected the device will present an IP address where the website is hosted
 
 
 Current program functionality:
+
     - Connects to the internet
     - Retrieves time from NIST server
     - Retrives temp and humidity from the sensor
@@ -36,6 +37,7 @@ Current program functionality:
     --- This is documented in the .js file and the .cpp file.
     
 Needs to be done:
+
     -Menu
     -- Setup
     --- set time
