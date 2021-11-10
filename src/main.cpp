@@ -20,6 +20,7 @@
 #include <NTPClient.h>
 #include <esp_now.h>
 
+
 /***********************************************************************************
  ***********************************************************************************
                                   Define Pins
@@ -246,13 +247,20 @@ bool heatOn = false;
 // setup the DHT sensor
 DHT dht(DHTPIN, DHTTYPE);
 
-// Define a time (in seconds) between sensor reads
-#define DHT_UPDATE_DELAY 5
+// Define a time (in milliseconds) between sensor reads
+#define DHT_UPDATE_DELAY 5000
 
 float nowTemp = 0;
 float highTemp = 80.00;
 float lowTemp = 75.00;
 
+/***********************************************************************************
+ ***********************************************************************************
+                                  millis() Setup
+ ***********************************************************************************
+ **********************************************************************************/
+int currentMillis = 0;
+int updateMillis = 0;
 
 /***********************************************************************************
  ***********************************************************************************
@@ -278,37 +286,36 @@ void setup()
   pinMode(BUTTON_C, INPUT_PULLUP);
   pinMode(BUTTON_D, INPUT_PULLUP);
 
-  //if(digitalRead(BUTTON_A)){
-  // Setup WiFi
-  Serial.print("\nStarting Async_AutoConnect_ESP32_minimal on " + String(ARDUINO_BOARD));
-  Serial.println(ESP_ASYNC_WIFIMANAGER_VERSION);
-  ESPAsync_WiFiManager ESPAsync_wifiManager(&webServer, &dnsServer, "Async_AutoConnect");
-  // ESPAsync_wifiManager.resetSettings();   //reset saved settings
-  ESPAsync_wifiManager.setAPStaticIPConfig(IPAddress(192, 168, 132, 1), IPAddress(192, 168, 132, 1), IPAddress(255, 255, 255, 0));
-  ESPAsync_wifiManager.autoConnect("AutoConnectAP");
-  u8g2.clearBuffer();                    // clear the internal memory
-  u8g2.setFont(u8g2_font_ncenB08_tr);    // choose a suitable font
-  u8g2.drawStr(0, 10, "Connect to AP!"); // write something to the internal memory
-  u8g2.drawStr(0, 20, "192.168.132.1");
-  u8g2.sendBuffer(); // transfer internal memory to the display
-  Serial.print("\nConnect to the AutoConnectAP Access Point and point your browser to:192.168.132.1\n");
-  delay(2000);
-  if (WiFi.status() == WL_CONNECTED)
-  {
 
-    Serial.print(F("Connected. Local IP: "));
-    Serial.println(WiFi.localIP());
-    u8g2.clearBuffer();                        // clear the internal memory
-    u8g2.setFont(u8g2_font_ncenB08_tr);        // choose a suitable font
-    u8g2.drawStr(0, 10, "Connected to Wifi!"); // write something to the internal memory
-    u8g2.drawStr(0, 20, WiFi.localIP().toString().c_str());
-    u8g2.sendBuffer(); // transfer internal memory to the display
-  }
-  else
-  {
-    Serial.println(ESPAsync_wifiManager.getStatus(WiFi.status()));
-  }
-  //}
+
+   Serial.print("\nStarting Async_AutoConnect_ESP32_minimal on " + String(ARDUINO_BOARD));
+   Serial.println(ESP_ASYNC_WIFIMANAGER_VERSION);
+   ESPAsync_WiFiManager ESPAsync_wifiManager(&webServer, &dnsServer, "Async_AutoConnect");
+   // ESPAsync_wifiManager.resetSettings();   //reset saved settings
+   ESPAsync_wifiManager.setAPStaticIPConfig(IPAddress(192, 168, 132, 1), IPAddress(192, 168, 132, 1), IPAddress(255, 255, 255, 0));
+   ESPAsync_wifiManager.autoConnect("AutoConnectAP");
+   u8g2.clearBuffer();                    // clear the internal memory
+   u8g2.setFont(u8g2_font_ncenB08_tr);    // choose a suitable font
+   u8g2.drawStr(0, 10, "Connect to AP!"); // write something to the internal memory
+   u8g2.drawStr(0, 20, "192.168.132.1");
+   u8g2.sendBuffer(); // transfer internal memory to the display
+   Serial.print("\nConnect to the AutoConnectAP Access Point and point your browser to:192.168.132.1\n");
+   delay(2000);
+   if (WiFi.status() == WL_CONNECTED)
+   {
+
+     Serial.print(F("Connected. Local IP: "));
+     Serial.println(WiFi.localIP());
+     u8g2.clearBuffer();                        // clear the internal memory
+     u8g2.setFont(u8g2_font_ncenB08_tr);        // choose a suitable font
+     u8g2.drawStr(0, 10, "Connected to Wifi!"); // write something to the internal memory
+     u8g2.drawStr(0, 20, WiFi.localIP().toString().c_str());
+     u8g2.sendBuffer(); // transfer internal memory to the display
+   }
+   else
+   {
+     Serial.println(ESPAsync_wifiManager.getStatus(WiFi.status()));
+   }
 
   // setup websocket
   initWebSocket();
@@ -348,7 +355,6 @@ void loop()
   // int buttonStateA = 0;
   // int buttonStateB = 0;
 
-
   //  current time is the current time pulled from timeClient.getEpochTime();
   // int currentTime;
 
@@ -382,8 +388,6 @@ void loop()
     Serial.print("HOUR: ");
     Serial.println(timeStamp); */
 
-  
-
   if (newRequest)
   {
     if (direction == "CW")
@@ -407,17 +411,19 @@ void loop()
   if (digitalRead(BUTTON_B) == LOW)
     myStepper.step(-100);
 
-  if (digitalRead(BUTTON_C) == LOW){
+  if (digitalRead(BUTTON_C) == LOW)
+  {
     Serial.print("Button C pressed");
   }
 
-  if (digitalRead(BUTTON_D) == LOW){
+  if (digitalRead(BUTTON_D) == LOW)
+  {
     Serial.print("Button D pressed");
   }
   // Wait a few seconds between measurements.
   // Epoch time is the date in one long integer which makes it easy to compare time
   // between the last sample time and the current time
-  if (timeClient.getEpochTime() > updateTime)
+  if (millis() > updateMillis)
   {
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
@@ -458,22 +464,20 @@ void loop()
     Serial.print(hif);
     Serial.println(F("°F"));
     u8g2.sendBuffer();
-    
+
     // Set current time to
     // currentTime = timeClient.getEpochTime();
-    updateTime = timeClient.getEpochTime() + DHT_UPDATE_DELAY;
+    updateMillis = millis() + DHT_UPDATE_DELAY;
 
-    if(nowTemp < lowTemp && !heatOn)
+    if (nowTemp < lowTemp && !heatOn)
     {
       myStepper.step(-1000);
       heatOn = true;
     }
-    if(nowTemp > highTemp && heatOn)
+    if (nowTemp > highTemp && heatOn)
     {
       myStepper.step(1000);
       heatOn = false;
     }
   }
-
-
 }
