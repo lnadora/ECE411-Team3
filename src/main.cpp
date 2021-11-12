@@ -20,7 +20,6 @@
 #include <NTPClient.h>
 #include <esp_now.h>
 
-
 /***********************************************************************************
  ***********************************************************************************
                                   Define Pins
@@ -286,36 +285,34 @@ void setup()
   pinMode(BUTTON_C, INPUT_PULLUP);
   pinMode(BUTTON_D, INPUT_PULLUP);
 
+  Serial.print("\nStarting Async_AutoConnect_ESP32_minimal on " + String(ARDUINO_BOARD));
+  Serial.println(ESP_ASYNC_WIFIMANAGER_VERSION);
+  ESPAsync_WiFiManager ESPAsync_wifiManager(&webServer, &dnsServer, "Async_AutoConnect");
+  // ESPAsync_wifiManager.resetSettings();   //reset saved settings
+  ESPAsync_wifiManager.setAPStaticIPConfig(IPAddress(192, 168, 132, 1), IPAddress(192, 168, 132, 1), IPAddress(255, 255, 255, 0));
+  ESPAsync_wifiManager.autoConnect("AutoConnectAP");
+  u8g2.clearBuffer();                    // clear the internal memory
+  u8g2.setFont(u8g2_font_ncenB08_tr);    // choose a suitable font
+  u8g2.drawStr(0, 10, "Connect to AP!"); // write something to the internal memory
+  u8g2.drawStr(0, 20, "192.168.132.1");
+  u8g2.sendBuffer(); // transfer internal memory to the display
+  Serial.print("\nConnect to the AutoConnectAP Access Point and point your browser to:192.168.132.1\n");
+  delay(2000);
+  if (WiFi.status() == WL_CONNECTED)
+  {
 
-
-   Serial.print("\nStarting Async_AutoConnect_ESP32_minimal on " + String(ARDUINO_BOARD));
-   Serial.println(ESP_ASYNC_WIFIMANAGER_VERSION);
-   ESPAsync_WiFiManager ESPAsync_wifiManager(&webServer, &dnsServer, "Async_AutoConnect");
-   // ESPAsync_wifiManager.resetSettings();   //reset saved settings
-   ESPAsync_wifiManager.setAPStaticIPConfig(IPAddress(192, 168, 132, 1), IPAddress(192, 168, 132, 1), IPAddress(255, 255, 255, 0));
-   ESPAsync_wifiManager.autoConnect("AutoConnectAP");
-   u8g2.clearBuffer();                    // clear the internal memory
-   u8g2.setFont(u8g2_font_ncenB08_tr);    // choose a suitable font
-   u8g2.drawStr(0, 10, "Connect to AP!"); // write something to the internal memory
-   u8g2.drawStr(0, 20, "192.168.132.1");
-   u8g2.sendBuffer(); // transfer internal memory to the display
-   Serial.print("\nConnect to the AutoConnectAP Access Point and point your browser to:192.168.132.1\n");
-   delay(2000);
-   if (WiFi.status() == WL_CONNECTED)
-   {
-
-     Serial.print(F("Connected. Local IP: "));
-     Serial.println(WiFi.localIP());
-     u8g2.clearBuffer();                        // clear the internal memory
-     u8g2.setFont(u8g2_font_ncenB08_tr);        // choose a suitable font
-     u8g2.drawStr(0, 10, "Connected to Wifi!"); // write something to the internal memory
-     u8g2.drawStr(0, 20, WiFi.localIP().toString().c_str());
-     u8g2.sendBuffer(); // transfer internal memory to the display
-   }
-   else
-   {
-     Serial.println(ESPAsync_wifiManager.getStatus(WiFi.status()));
-   }
+    Serial.print(F("Connected. Local IP: "));
+    Serial.println(WiFi.localIP());
+    u8g2.clearBuffer();                        // clear the internal memory
+    u8g2.setFont(u8g2_font_ncenB08_tr);        // choose a suitable font
+    u8g2.drawStr(0, 10, "Connected to Wifi!"); // write something to the internal memory
+    u8g2.drawStr(0, 20, WiFi.localIP().toString().c_str());
+    u8g2.sendBuffer(); // transfer internal memory to the display
+  }
+  else
+  {
+    Serial.println(ESPAsync_wifiManager.getStatus(WiFi.status()));
+  }
 
   // setup websocket
   initWebSocket();
