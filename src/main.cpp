@@ -135,8 +135,8 @@ ezButton BUTTON_B(PIN_D25);
 ezButton BUTTON_C(PIN_D33);
 ezButton BUTTON_D(PIN_D32);
 
-#define CONST_BUTTON_A PIN_D26
-#define CONST_BUTTON_B PIN_D25
+#define CONST_BUTTON_C PIN_D33
+#define CONST_BUTTON_D PIN_D32
 
 #define DEBOUNCE_TIME 25
 
@@ -146,7 +146,9 @@ ezButton BUTTON_D(PIN_D32);
  ***********************************************************************************
  **********************************************************************************/
 bool showTemp = false;
-const int menuSize = 4;
+bool enableMenu = true;
+int menuState = 0;
+const int menuSize = 5;
 String menuItems[menuSize];
 
 bool upLastState = true;
@@ -322,8 +324,8 @@ void setup()
   u8g2.begin();
   u8g2.setFont(u8g2_font_ncenB08_tr);    // choose a suitable font
   // Setup Button
-  pinMode(CONST_BUTTON_A, INPUT);
-  pinMode(CONST_BUTTON_B, INPUT);
+  pinMode(CONST_BUTTON_C, INPUT);
+  pinMode(CONST_BUTTON_D, INPUT);
   BUTTON_A.setDebounceTime(DEBOUNCE_TIME);
   BUTTON_B.setDebounceTime(DEBOUNCE_TIME);
   BUTTON_C.setDebounceTime(DEBOUNCE_TIME);
@@ -398,6 +400,7 @@ void setup()
   menuItems[1] = "Set leave Time";
   menuItems[2] = "Set home Time";
   menuItems[3] = "Move dial";
+  menuItems[4] = "Display Temperature";
   MenuChanged();
 }
 
@@ -412,8 +415,7 @@ void loop()
   BUTTON_B.loop();
   BUTTON_C.loop();
   BUTTON_D.loop();
-  // int buttonStateA = 0;
-  // int buttonStateB = 0;
+ 
 
   //  current time is the current time pulled from timeClient.getEpochTime();
   // int currentTime;
@@ -466,16 +468,14 @@ void loop()
   // To prevent watchdog error, the program will make 100 steps each
   // cycle the program makes through loop().  When button is released,
   // the motor stops moving.
-  if (digitalRead(CONST_BUTTON_A)==LOW)
+   if (digitalRead(CONST_BUTTON_C)==LOW && menuState == 3)
     myStepper.step(100);
-  if (digitalRead(CONST_BUTTON_B)==LOW)
-    myStepper.step(-100);
+  if (digitalRead(CONST_BUTTON_D)==LOW && menuState == 3)
+    myStepper.step(-100); 
 
-   if (BUTTON_C.isPressed())
+   if (BUTTON_C.isPressed() && enableMenu)
   {
-    upLastState = !upLastState;
-
-    if (!upLastState){
+   
       if(currentMenu>0){ 
         currentMenu--;
       }
@@ -483,16 +483,12 @@ void loop()
         currentMenu = menuSize -1;
       }
       MenuChanged();
-    }
-    else{ 
-
-    }
+  
+    
   } 
 
-   if(BUTTON_D.isPressed()){
-    downLastState = !downLastState;
-
-    if(!downLastState){
+   if(BUTTON_D.isPressed()&& enableMenu){
+    
        if(currentMenu< menuSize - 1){ 
         currentMenu++;
       }
@@ -500,16 +496,25 @@ void loop()
         currentMenu = 0;
       }
       MenuChanged();
-    }
+  
   } 
 
+  if(BUTTON_B.isPressed()){
+    menuState = currentMenu;
+    enableMenu = false;
+  }
 
+  if(BUTTON_A.isPressed()){
+    menuState = menuSize +1;
+    enableMenu = true;
+    MenuChanged();
+  }
 
   
   // Wait a few seconds between measurements.
   // Epoch time is the date in one long integer which makes it easy to compare time
   // between the last sample time and the current time
-  if (millis() > updateMillis && showTemp)
+  if (millis() > updateMillis && menuState == 4)
   {
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
