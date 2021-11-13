@@ -409,6 +409,7 @@ void setup()
 void loop()
 {
 
+  float h,t,f;
   static bool screenUpdated = false;
   BUTTON_A.loop();
   BUTTON_B.loop();
@@ -556,11 +557,20 @@ void loop()
   {
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-    float h = dht.readHumidity();
+    h = dht.readHumidity();
+    while(isnan(h)){
+        h = dht.readHumidity();
+    }
     // Read temperature as Celsius (the default)
-    float t = dht.readTemperature();
+    t = dht.readTemperature();
+    while(isnan(t)){
+      t = dht.readTemperature();
+    }
     // Read temperature as Fahrenheit (isFahrenheit = true)
     float f = dht.readTemperature(true);
+    while(isnan(f)){
+      t = dht.readTemperature(true);
+    }
     nowTemp = f;
     // Check if any reads failed and exit early (to try again).
     if ((isnan(h) || isnan(t) || isnan(f)) && millis()> updateMillis)
