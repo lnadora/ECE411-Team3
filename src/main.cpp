@@ -124,6 +124,35 @@ U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, /* clock=*/PIN_SCL, /* data
 #define BUTTON_C PIN_D33
 #define BUTTON_D PIN_D32
 
+
+
+/***********************************************************************************
+ ***********************************************************************************
+                                    Menu Setup
+ ***********************************************************************************
+ **********************************************************************************/
+bool showTemp = false;
+const int menuSize = 4;
+String menuItems[menuSize];
+
+bool upLastState = true;
+bool downLastState = true;
+
+int currentMenu = 0;
+String temp;
+char currentPrintOut[20];
+
+void MenuChanged(){
+  Serial.println(menuItems[currentMenu]);
+
+  u8g2.clearBuffer();                    // clear the internal memory
+  temp = String(menuItems[currentMenu]);
+  temp.toCharArray(currentPrintOut, 20);
+  u8g2.drawStr(0, 10, currentPrintOut); // write something to the internal memory
+  u8g2.sendBuffer(); // transfer internal memory to the display
+}
+
+
 /***********************************************************************************
  ***********************************************************************************
                                   Webserver setup
@@ -277,7 +306,7 @@ void setup()
 
   // Setup Display
   u8g2.begin();
-
+  u8g2.setFont(u8g2_font_ncenB08_tr);    // choose a suitable font
   // Setup Button
 
   pinMode(BUTTON_A, INPUT_PULLUP);
@@ -292,7 +321,7 @@ void setup()
   ESPAsync_wifiManager.setAPStaticIPConfig(IPAddress(192, 168, 132, 1), IPAddress(192, 168, 132, 1), IPAddress(255, 255, 255, 0));
   ESPAsync_wifiManager.autoConnect("AutoConnectAP");
   u8g2.clearBuffer();                    // clear the internal memory
-  u8g2.setFont(u8g2_font_ncenB08_tr);    // choose a suitable font
+  
   u8g2.drawStr(0, 10, "Connect to AP!"); // write something to the internal memory
   u8g2.drawStr(0, 20, "192.168.132.1");
   u8g2.sendBuffer(); // transfer internal memory to the display
@@ -340,6 +369,13 @@ void setup()
   // PST is GMT -8
   //  3600*-8 = -28800
   timeClient.setTimeOffset(-28800);
+  
+  //Menu Setup
+  menuItems[0] = "Set current Time";
+  menuItems[1] = "Set leave Time";
+  menuItems[2] = "Set home Time";
+  menuItems[3] = "Move dial";
+  MenuChanged();
 }
 
 /***********************************************************************************
@@ -408,19 +444,45 @@ void loop()
   if (digitalRead(BUTTON_B) == LOW)
     myStepper.step(-100);
 
-  if (digitalRead(BUTTON_C) == LOW)
+   if (digitalRead(BUTTON_C) != upLastState)
   {
-    Serial.print("Button C pressed");
-  }
+    upLastState = !upLastState;
 
-  if (digitalRead(BUTTON_D) == LOW)
-  {
-    Serial.print("Button D pressed");
-  }
+    if (!upLastState){
+      if(currentMenu>0){ 
+        currentMenu--;
+      }
+      else{ 
+        currentMenu = menuSize -1;
+      }
+      MenuChanged();
+    }
+    else{ 
+
+    }
+  } 
+
+   if(digitalRead(BUTTON_D) != downLastState){
+    downLastState = !downLastState;
+
+    if(!downLastState){
+       if(currentMenu<0){ 
+        currentMenu++;
+      }
+      else{ 
+        currentMenu = menuSize -1;
+      }
+      MenuChanged();
+    }
+  } 
+
+
+
+  
   // Wait a few seconds between measurements.
   // Epoch time is the date in one long integer which makes it easy to compare time
   // between the last sample time and the current time
-  if (millis() > updateMillis)
+  if (millis() > updateMillis && showTemp)
   {
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
