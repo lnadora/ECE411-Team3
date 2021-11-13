@@ -105,11 +105,8 @@ String timeStamp;
 int inputHour, inputMin, timeZone;
 bool dst;
 
-struct tm* timePTR;
+struct tm *timePTR;
 time_t t;
-
-
-
 
 /***********************************************************************************
  ***********************************************************************************
@@ -158,16 +155,16 @@ int currentMenu = 0;
 String temp;
 char currentPrintOut[20];
 
-void MenuChanged(){
+void MenuChanged()
+{
   Serial.println(menuItems[currentMenu]);
 
-  u8g2.clearBuffer();                    // clear the internal memory
+  u8g2.clearBuffer(); // clear the internal memory
   temp = String(menuItems[currentMenu]);
   temp.toCharArray(currentPrintOut, 20);
   u8g2.drawStr(0, 10, currentPrintOut); // write something to the internal memory
-  u8g2.sendBuffer(); // transfer internal memory to the display
+  u8g2.sendBuffer();                    // transfer internal memory to the display
 }
-
 
 /***********************************************************************************
  ***********************************************************************************
@@ -322,7 +319,7 @@ void setup()
 
   // Setup Display
   u8g2.begin();
-  u8g2.setFont(u8g2_font_ncenB08_tr);    // choose a suitable font
+  u8g2.setFont(u8g2_font_ncenB08_tr); // choose a suitable font
   // Setup Button
   pinMode(CONST_BUTTON_C, INPUT);
   pinMode(CONST_BUTTON_D, INPUT);
@@ -337,8 +334,8 @@ void setup()
   // ESPAsync_wifiManager.resetSettings();   //reset saved settings
   ESPAsync_wifiManager.setAPStaticIPConfig(IPAddress(192, 168, 132, 1), IPAddress(192, 168, 132, 1), IPAddress(255, 255, 255, 0));
   ESPAsync_wifiManager.autoConnect("AutoConnectAP");
-  u8g2.clearBuffer();                    // clear the internal memory
-  
+  u8g2.clearBuffer(); // clear the internal memory
+
   u8g2.drawStr(0, 10, "Connect to AP!"); // write something to the internal memory
   u8g2.drawStr(0, 20, "192.168.132.1");
   u8g2.sendBuffer(); // transfer internal memory to the display
@@ -395,7 +392,7 @@ void setup()
   timePTR->tm_hour = 6;
   timePTR->tm_min = 26;
 
-  //Menu Setup
+  // Menu Setup
   menuItems[0] = "Set current Time";
   menuItems[1] = "Set leave Time";
   menuItems[2] = "Set home Time";
@@ -411,11 +408,12 @@ void setup()
  **********************************************************************************/
 void loop()
 {
+
+  static bool screenUpdated = false;
   BUTTON_A.loop();
   BUTTON_B.loop();
   BUTTON_C.loop();
   BUTTON_D.loop();
- 
 
   //  current time is the current time pulled from timeClient.getEpochTime();
   // int currentTime;
@@ -426,7 +424,7 @@ void loop()
   //  It doesn't have to be zero, but it needs to be less than the
   //  current Epoch time because we want to trigger the read temp settings
   //  the first time.
-  //static int updateTime = 0;
+  // static int updateTime = 0;
 
   // Time client setup
   while (!timeClient.update())
@@ -462,55 +460,95 @@ void loop()
       myStepper.step(-steps.toInt());
     }
     newRequest = false;
-    notifyClients("stop");
+    notifyClients("stop\n");
   }
   ws.cleanupClients();
   // To prevent watchdog error, the program will make 100 steps each
   // cycle the program makes through loop().  When button is released,
   // the motor stops moving.
-   if (digitalRead(CONST_BUTTON_C)==LOW && menuState == 3)
-    myStepper.step(100);
-  if (digitalRead(CONST_BUTTON_D)==LOW && menuState == 3)
-    myStepper.step(-100); 
-
-   if (BUTTON_C.isPressed() && enableMenu)
+  if ((BUTTON_C.isReleased()||BUTTON_D.isReleased()) && menuState == 3)
+    {
+      screenUpdated = false;
+      u8g2.clearBuffer();
+      Serial.print(F("Stopped\n"));
+      u8g2.drawStr(0, 10, "Stopped");
+      u8g2.sendBuffer();
+    }
+  if (digitalRead(CONST_BUTTON_C) == LOW && menuState == 3)
   {
-   
-      if(currentMenu>0){ 
-        currentMenu--;
-      }
-      else{ 
-        currentMenu = menuSize -1;
-      }
-      MenuChanged();
-  
-    
-  } 
 
-   if(BUTTON_D.isPressed()&& enableMenu){
-    
-       if(currentMenu< menuSize - 1){ 
-        currentMenu++;
-      }
-      else{ 
-        currentMenu = 0;
-      }
-      MenuChanged();
-  
-  } 
+    myStepper.step(100);
+    if (!screenUpdated)
+    {
+      u8g2.clearBuffer();
+      Serial.print(F("Moving Clockwise\n"));
+      u8g2.drawStr(0, 10, "Moving Clockwise");
+      u8g2.sendBuffer();
+      screenUpdated = true;
+    }
+  }
+  /* if (BUTTON_D.isReleased() && menuState == 3)
+    {
+      screenUpdated = false;
+      u8g2.clearBuffer();
+      Serial.print(F("Stopped\n"));
+      u8g2.drawStr(0, 10, "Stopped");
+      u8g2.sendBuffer();
+    } */
+  if (digitalRead(CONST_BUTTON_D) == LOW && menuState == 3)
+  {
+    myStepper.step(-100);
+    if (!screenUpdated)
+    {
+      u8g2.clearBuffer();
+      Serial.print(F("Moving Anti-Clockwise"));
+      u8g2.drawStr(0, 10, "Moving");
+      u8g2.drawStr(0, 20, "Anti-Clockwise");
+      u8g2.sendBuffer();
+      screenUpdated = true;
+    }
+  }
+  if (BUTTON_C.isPressed() && enableMenu)
+  {
 
-  if(BUTTON_B.isPressed()){
+    if (currentMenu > 0)
+    {
+      currentMenu--;
+    }
+    else
+    {
+      currentMenu = menuSize - 1;
+    }
+    MenuChanged();
+  }
+
+  if (BUTTON_D.isPressed() && enableMenu)
+  {
+
+    if (currentMenu < menuSize - 1)
+    {
+      currentMenu++;
+    }
+    else
+    {
+      currentMenu = 0;
+    }
+    MenuChanged();
+  }
+
+  if (BUTTON_B.isPressed())
+  {
     menuState = currentMenu;
     enableMenu = false;
   }
 
-  if(BUTTON_A.isPressed()){
-    menuState = menuSize +1;
+  if (BUTTON_A.isPressed())
+  {
+    menuState = menuSize + 1;
     enableMenu = true;
     MenuChanged();
   }
 
-  
   // Wait a few seconds between measurements.
   // Epoch time is the date in one long integer which makes it easy to compare time
   // between the last sample time and the current time
@@ -525,8 +563,9 @@ void loop()
     float f = dht.readTemperature(true);
     nowTemp = f;
     // Check if any reads failed and exit early (to try again).
-    if (isnan(h) || isnan(t) || isnan(f))
+    if ((isnan(h) || isnan(t) || isnan(f)) && millis()> updateMillis)
     {
+      updateMillis = millis() + DHT_UPDATE_DELAY;
       Serial.println(F("Failed to read from DHT sensor!"));
       return;
     }
