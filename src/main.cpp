@@ -19,6 +19,8 @@
 #include <WiFiUdp.h>
 #include <NTPClient.h>
 #include <esp_now.h>
+#include <time.h>
+#include <ezButton.h>
 
 /***********************************************************************************
  ***********************************************************************************
@@ -100,6 +102,15 @@ String formattedDate;
 String dayStamp;
 String timeStamp;
 
+int inputHour, inputMin, timeZone;
+bool dst;
+
+struct tm* timePTR;
+time_t t;
+
+
+
+
 /***********************************************************************************
  ***********************************************************************************
                                       OLED Setup
@@ -119,12 +130,15 @@ U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, /* clock=*/PIN_SCL, /* data
                                   Button Setup
  ***********************************************************************************
  **********************************************************************************/
-#define BUTTON_A PIN_D26
-#define BUTTON_B PIN_D25
-#define BUTTON_C PIN_D33
-#define BUTTON_D PIN_D32
+ezButton BUTTON_A(PIN_D26);
+ezButton BUTTON_B(PIN_D25);
+ezButton BUTTON_C(PIN_D33);
+ezButton BUTTON_D(PIN_D32);
 
+#define CONST_BUTTON_A PIN_D26
+#define CONST_BUTTON_B PIN_D25
 
+#define DEBOUNCE_TIME 25
 
 /***********************************************************************************
  ***********************************************************************************
@@ -308,11 +322,12 @@ void setup()
   u8g2.begin();
   u8g2.setFont(u8g2_font_ncenB08_tr);    // choose a suitable font
   // Setup Button
-
-  pinMode(BUTTON_A, INPUT_PULLUP);
-  pinMode(BUTTON_B, INPUT_PULLUP);
-  pinMode(BUTTON_C, INPUT_PULLUP);
-  pinMode(BUTTON_D, INPUT_PULLUP);
+  pinMode(CONST_BUTTON_A, INPUT);
+  pinMode(CONST_BUTTON_B, INPUT);
+  BUTTON_A.setDebounceTime(DEBOUNCE_TIME);
+  BUTTON_B.setDebounceTime(DEBOUNCE_TIME);
+  BUTTON_C.setDebounceTime(DEBOUNCE_TIME);
+  BUTTON_D.setDebounceTime(DEBOUNCE_TIME);
 
   Serial.print("\nStarting Async_AutoConnect_ESP32_minimal on " + String(ARDUINO_BOARD));
   Serial.println(ESP_ASYNC_WIFIMANAGER_VERSION);
@@ -369,7 +384,15 @@ void setup()
   // PST is GMT -8
   //  3600*-8 = -28800
   timeClient.setTimeOffset(-28800);
-  
+  t = time(NULL);
+  timePTR = localtime(&t);
+  timePTR->tm_hour = 6;
+  timePTR->tm_min = 26;
+  printf("%s", asctime(timePTR));
+
+  timePTR->tm_hour = 6;
+  timePTR->tm_min = 26;
+
   //Menu Setup
   menuItems[0] = "Set current Time";
   menuItems[1] = "Set leave Time";
@@ -385,6 +408,10 @@ void setup()
  **********************************************************************************/
 void loop()
 {
+  BUTTON_A.loop();
+  BUTTON_B.loop();
+  BUTTON_C.loop();
+  BUTTON_D.loop();
   // int buttonStateA = 0;
   // int buttonStateB = 0;
 
@@ -397,7 +424,7 @@ void loop()
   //  It doesn't have to be zero, but it needs to be less than the
   //  current Epoch time because we want to trigger the read temp settings
   //  the first time.
-  static int updateTime = 0;
+  //static int updateTime = 0;
 
   // Time client setup
   while (!timeClient.update())
@@ -439,12 +466,12 @@ void loop()
   // To prevent watchdog error, the program will make 100 steps each
   // cycle the program makes through loop().  When button is released,
   // the motor stops moving.
-  if (digitalRead(BUTTON_A) == LOW)
+  if (digitalRead(CONST_BUTTON_A)==LOW)
     myStepper.step(100);
-  if (digitalRead(BUTTON_B) == LOW)
+  if (digitalRead(CONST_BUTTON_B)==LOW)
     myStepper.step(-100);
 
-   if (digitalRead(BUTTON_C) != upLastState)
+   if (BUTTON_C.isPressed())
   {
     upLastState = !upLastState;
 
@@ -462,15 +489,15 @@ void loop()
     }
   } 
 
-   if(digitalRead(BUTTON_D) != downLastState){
+   if(BUTTON_D.isPressed()){
     downLastState = !downLastState;
 
     if(!downLastState){
-       if(currentMenu<0){ 
+       if(currentMenu< menuSize - 1){ 
         currentMenu++;
       }
       else{ 
-        currentMenu = menuSize -1;
+        currentMenu = 0;
       }
       MenuChanged();
     }
