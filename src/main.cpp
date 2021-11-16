@@ -144,8 +144,9 @@ ezButton BUTTON_D(PIN_D32);
  **********************************************************************************/
 bool showTemp = false;
 bool enableMenu = true;
+bool screenUpdated = false;
 int menuState = 0;
-const int menuSize = 5;
+const int menuSize = 8;
 String menuItems[menuSize];
 
 bool upLastState = true;
@@ -155,16 +156,9 @@ int currentMenu = 0;
 String temp;
 char currentPrintOut[20];
 
-void MenuChanged()
-{
-  Serial.println(menuItems[currentMenu]);
+void MenuChanged();
+void moveDial();
 
-  u8g2.clearBuffer(); // clear the internal memory
-  temp = String(menuItems[currentMenu]);
-  temp.toCharArray(currentPrintOut, 20);
-  u8g2.drawStr(0, 10, currentPrintOut); // write something to the internal memory
-  u8g2.sendBuffer();                    // transfer internal memory to the display
-}
 
 /***********************************************************************************
  ***********************************************************************************
@@ -393,11 +387,14 @@ void setup()
   timePTR->tm_min = 26;
 
   // Menu Setup
-  menuItems[0] = "Set current Time";
-  menuItems[1] = "Set leave Time";
-  menuItems[2] = "Set home Time";
-  menuItems[3] = "Move dial";
-  menuItems[4] = "Display Temperature";
+  menuItems[0] = "Set current hour";
+  menuItems[1] = "Set current minute";
+  menuItems[2] = "Set leave hour";
+  menuItems[3] = "Set leave min";
+  menuItems[4] = "Set home hour";
+  menuItems[5] = "Set home min";
+  menuItems[6] = "Move dial";
+  menuItems[7] = "Display Temperature";
   MenuChanged();
 }
 
@@ -409,8 +406,8 @@ void setup()
 void loop()
 {
 
-  float h,t,f;
-  static bool screenUpdated = false;
+  float h, t, f;
+
   BUTTON_A.loop();
   BUTTON_B.loop();
   BUTTON_C.loop();
@@ -467,47 +464,33 @@ void loop()
   // To prevent watchdog error, the program will make 100 steps each
   // cycle the program makes through loop().  When button is released,
   // the motor stops moving.
-  if ((BUTTON_C.isReleased()||BUTTON_D.isReleased()) && menuState == 3)
-    {
-      screenUpdated = false;
-      u8g2.clearBuffer();
-      Serial.print(F("Stopped\n"));
-      u8g2.drawStr(0, 10, "Stopped");
-      u8g2.sendBuffer();
-    }
-  if (digitalRead(CONST_BUTTON_C) == LOW && menuState == 3)
-  {
 
-    myStepper.step(100);
-    if (!screenUpdated)
-    {
-      u8g2.clearBuffer();
-      Serial.print(F("Moving Clockwise\n"));
-      u8g2.drawStr(0, 10, "Moving Clockwise");
-      u8g2.sendBuffer();
-      screenUpdated = true;
-    }
-  }
-  /* if (BUTTON_D.isReleased() && menuState == 3)
-    {
-      screenUpdated = false;
-      u8g2.clearBuffer();
-      Serial.print(F("Stopped\n"));
-      u8g2.drawStr(0, 10, "Stopped");
-      u8g2.sendBuffer();
-    } */
-  if (digitalRead(CONST_BUTTON_D) == LOW && menuState == 3)
+  switch (menuState)
   {
-    myStepper.step(-100);
-    if (!screenUpdated)
-    {
-      u8g2.clearBuffer();
-      Serial.print(F("Moving Anti-Clockwise"));
-      u8g2.drawStr(0, 10, "Moving");
-      u8g2.drawStr(0, 20, "Anti-Clockwise");
-      u8g2.sendBuffer();
-      screenUpdated = true;
-    }
+  case 0:
+
+    break;
+  case 1:
+
+    break;
+  case 2:
+
+    break;
+  case 3:
+
+    break;
+  case 4:
+
+    break;
+  case 5:
+
+    break;
+  case 6:
+    moveDial();
+    break;
+  case 7:
+
+    break;
   }
   if (BUTTON_C.isPressed() && enableMenu)
   {
@@ -553,27 +536,30 @@ void loop()
   // Wait a few seconds between measurements.
   // Epoch time is the date in one long integer which makes it easy to compare time
   // between the last sample time and the current time
-  if (millis() > updateMillis && menuState == 4)
+  if (millis() > updateMillis && menuState == 7)
   {
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
     h = dht.readHumidity();
-    while(isnan(h)){
-        h = dht.readHumidity();
+    while (isnan(h))
+    {
+      h = dht.readHumidity();
     }
     // Read temperature as Celsius (the default)
     t = dht.readTemperature();
-    while(isnan(t)){
+    while (isnan(t))
+    {
       t = dht.readTemperature();
     }
     // Read temperature as Fahrenheit (isFahrenheit = true)
-    float f = dht.readTemperature(true);
-    while(isnan(f)){
+    f = dht.readTemperature(true);
+    while (isnan(f))
+    {
       t = dht.readTemperature(true);
     }
     nowTemp = f;
     // Check if any reads failed and exit early (to try again).
-    if ((isnan(h) || isnan(t) || isnan(f)) && millis()> updateMillis)
+    if ((isnan(h) || isnan(t) || isnan(f)) && millis() > updateMillis)
     {
       updateMillis = millis() + DHT_UPDATE_DELAY;
       Serial.println(F("Failed to read from DHT sensor!"));
@@ -618,6 +604,60 @@ void loop()
     {
       myStepper.step(1000);
       heatOn = false;
+    }
+  }
+}
+
+
+
+void MenuChanged()
+{
+  Serial.println(menuItems[currentMenu]);
+
+  u8g2.clearBuffer(); // clear the internal memory
+  temp = String(menuItems[currentMenu]);
+  temp.toCharArray(currentPrintOut, 20);
+  u8g2.drawStr(0, 10, currentPrintOut); // write something to the internal memory
+  u8g2.sendBuffer();                    // transfer internal memory to the display
+}
+
+void moveDial()
+{
+  
+  if ((digitalRead(CONST_BUTTON_C) == HIGH || digitalRead(CONST_BUTTON_D) == HIGH))
+  {
+    
+    u8g2.clearBuffer();
+    Serial.print(F("Stopped\n"));
+    u8g2.drawStr(0, 10, "Stopped");
+    u8g2.sendBuffer();
+    screenUpdated = true;
+  }
+  if (digitalRead(CONST_BUTTON_C) == LOW)
+  {
+
+    myStepper.step(100);
+    if (!screenUpdated)
+    {
+      u8g2.clearBuffer();
+      Serial.print(F("Moving Clockwise\n"));
+      u8g2.drawStr(0, 10, "Moving Clockwise");
+      u8g2.sendBuffer();
+      screenUpdated = true;
+    }
+  }
+
+  if (digitalRead(CONST_BUTTON_D) == LOW)
+  {
+    myStepper.step(-100);
+    if (!screenUpdated)
+    {
+      u8g2.clearBuffer();
+      Serial.print(F("Moving Anti-Clockwise"));
+      u8g2.drawStr(0, 10, "Moving");
+      u8g2.drawStr(0, 20, "Anti-Clockwise");
+      u8g2.sendBuffer();
+      screenUpdated = true;
     }
   }
 }
