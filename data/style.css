@@ -1,111 +1,147 @@
+/*
+  Rui Santos
+  Complete project details at https://RandomNerdTutorials.com/esp32-mpu-6050-web-server/
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files.
+  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+*/
+
 html {
-    font-family: Arial, Helvetica, sans-serif;
-  }
+  font-family: Courier New;
+  display: inline-block;
+  text-align: center;
+  background-color: #E0FFFF
+}
+p {
+  font-size: 1.2rem;
+}
+body {
+  margin: 0;
+}
+.topnav {
+  overflow: hidden;
+  background-color: skyblue;
+  color: lightcyan;
+  font-size: medium;
+  border-radius: 3px;
+}
+.topnav2 {
+  overflow: hidden;
+  background-color: skyblue;
+  color: lightcyan;
+  font-size: medium;
+  border-radius: 10px;
+}
+.content {
+  padding: 20px;
+}
+.card {
+  background-color: skyblue;
+    border-radius: 10px;
+/*  box-shadow: 2px 2px 12px 1px rgba(140,140,140,.5);*/
+}
+.card-title {
+  color:lightcyan;
+  font-weight: bold;
+}
+.cards {
+  max-width: 1000px;
+  color:blue;
+  margin: 0 auto;
+  display: grid; grid-gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+.reading {
+  color:lightcyan;
+  font-size: 1.2rem;
+}
+.cube-content{
+  width: 90%;
+  background-color: black;
+  height: 300px; margin: auto;
+  padding-top:2%;
+  color: aqua;
+}
+#reset{
+  border: none;
+  color: teal;
+  font-family: Courier New;
+  background-color: lightcyan;
+  padding: 10px;
+  text-align: center;
+  display: inline-block;
+  font-size: 14px; width: 150px;
+  border-radius: 4px;
+}
+#open{
+  border: none;
+  color: teal;
+  font-family: Courier New;
+  background-color: lightcyan;
+  padding: 10px;
+  text-align: center;
+  display: inline-block;
+  font-size: 14px; width: 150px;
+  border-radius: 4px;
+}
+#close{
+  border: none;
+  color: teal;
+  font-family: Courier New;
+  background-color: lightcyan;
+  padding: 10px;
+  text-align: center;
+  display: inline-block;
+  font-size: 14px; width: 150px;
+  border-radius: 4px;
+}
+#set{
+  border: none;
+  color: teal;
+  font-family: Courier New;
+  background-color: lightcyan;
+  margin-top: 10px;
+  padding: 10px;
+  text-align: center;
+  display: inline-block;
+  font-size: 14px; width: 140px;
+  border-radius: 10px;
+}
+#setvalue{
+  border: none;
+  color: teal;
+  font-family: Courier New;
+  background-color: lightcyan;
+  text-align: center;
+  padding: 10px;
+  height:30px;
+  line-height:30px;
+  font-size: 20px; width: 150px;
+  border-radius: 40px;
   
-  h1 {
-    font-size: 1.8rem;
-    color: white;
-  }
-  
-  p{
-    font-size: 20px;
-    text-align: center;
-  }
-  
-  .topnav {
-    overflow: hidden;
-    background-color: #0A1128;
-    text-align: center;
-  }
-  
-  body {
-    margin: 0;
-  }
-  
-  .content {
-    padding: 20px;
-    max-width: max-content;
-    margin: 0 auto;
-  }
-  
-  input[type=number], select {
-    width: 100%;
-    padding: 12px 20px;
-    margin: 8px 0;
-    display: inline-block;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-sizing: border-box;
-  }
-  
-  form{
-    border-radius: 5px;
-    background-color: #f2f2f2;
-    padding: 20px;
-  }
-  
-  button {
-    background-color: #034078;
-    border: none;
-    padding: 14px 20px;
-    text-align: center;
-    font-size: 20px;
-    border-radius: 4px;
-    transition-duration: 0.4s;
-    width: 100%;
-    color: white;
-    cursor: pointer;
-  }
-  
-  button:hover {
-      background-color: #1282A2;
-  }
-  
-  input[type="radio"] {
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    border-radius: 50%;
-    width: 16px;
-    height: 16px;
-    border: 2px solid #999;
-    transition: 0.2s all linear;
-    margin-right: 5px;
-    position: relative;
-    top: 4px;
-    }
-  
-  input[type="radio"]:checked{
-    border: 6px solid #1282A2;
-  }
-  
-  #motor-state{
-    font-weight: bold;
-    color: red;
-  }
-  
-  #gear{
-    font-size:100px;
-    color:#2d3031cb;
-  }
-  
-  .spin {
-    -webkit-animation:spin 4s linear infinite;
-    -moz-animation:spin 4s linear infinite;
-    animation:spin 4s linear infinite;
-  }
-  
-  .spin-back {
-    -webkit-animation:spin-back 4s linear infinite;
-    -moz-animation:spin-back 4s linear infinite;
-    animation:spin-back 4s linear infinite;
-  }
-  
-  @-moz-keyframes spin { 100% { -moz-transform: rotate(360deg); } }
-  @-webkit-keyframes spin { 100% { -webkit-transform: rotate(360deg); } }
-  @keyframes spin { 100% { -webkit-transform: rotate(360deg); transform:rotate(360deg); } }
-  
-  @-moz-keyframes spin-back { 100% { -moz-transform: rotate(-360deg); } }
-  @-webkit-keyframes spin-back { 100% { -webkit-transform: rotate(-360deg); } }
-  @keyframes spin-back { 100% { -webkit-transform: rotate(-360deg); transform:rotate(-360deg); } }
-  
+}
+#showip{
+  border: none;
+  color: teal;
+  font-family: Courier New;
+  background-color: lightcyan;
+  margin-top: 5px;
+  padding:10px;
+  text-align: center;
+  display: inline-block;
+  font-size: 14px; width: 140px;
+  border-radius: 10px;
+}
+#resetX, #resetY, #resetZ{
+  border: none;
+  color: teal;
+  font-family: Courier New;
+  background-color: lightcyan;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  text-align: center;
+  display: inline-block;
+  font-size: 14px;
+  width: 20px;
+  border-radius: 4px;
+}

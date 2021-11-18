@@ -1,480 +1,326 @@
-/***********************************************************************************
- ***********************************************************************************
-                                  Includes
- ***********************************************************************************
- **********************************************************************************/
+#include "DHT.h"                            //包含"DHT.h"头文件
+#include <Wire.h>                           //包含"Wire.h"头文件
+#include "WiFi.h"                           //包含"WiFi.h"头文件
+#include "SPIFFS.h"                         //包含"SPIFFS.h"头文件
+#include <Arduino.h>                        //包含"Arduino.h"头文件
+#include <U8g2lib.h>                        //包含"Arduino.h"头文件
+#include <AsyncTCP.h>                       //包含"AsyncTCP.h"头文件
+#include <WiFiManager.h>                    //包含"WiFiManager.h"头文件
+#include <CheapStepper.h>                   //包含"CheapStepper.h"头文件
+#include <Arduino_JSON.h>                   //包含"Arduino_JSON.h"头文件
+#include <Adafruit_Sensor.h>                //包含"Adafruit_Sensor.h"头文件
+#include <ESPAsyncWebServer.h>              //包含"ESPAsyncWebServer.h"头文件
+#define IN1               19                //步进电机控制引脚
+#define IN2               18                //步进电机控制引脚
+#define IN3               5                 //步进电机控制引脚
+#define IN4               17                //步进电机控制引脚
+#define DHTPIN            27                //dht11控制引脚
+#define buttonA           33                //按键引脚
+#define buttonB           26                //按键引脚
+#define buttonC           25                //按键引脚
+#define buttonD           14                //按键引脚
+#define DHTTYPE           DHT11             //dht11引脚
+#define tempGetTimeMax    2000              //dht11获取温度时间
+#define printTimeMax      500               //串口打印时间
+#define upTimeMax         500               //上传web时间
+#define showIPTimeMax     3000              //有IP网络时候的显示时间
+//#define temCheckTimeMax 120000            //温度检查时间120s
+#define temCheckTimeMax   200               //测试用 温度检查时间 200ms
+float setValue              = 20;           //初始设置温度
 
-#include <Arduino.h>
-#include <stdlib.h>
-#include <stepper.h>
-#include <FS.h>
-#include <WiFi.h>
-#include <ESPAsync_WiFiManager.h>
-#include <AsyncTCP.h>
-#include <ESPAsyncWebServer.h>
-#include <SPIFFS.h>
-#include <DHT.h>
-#include <U8g2lib.h>
-#include <string.h>
-#include <WiFiUdp.h>
-#include <NTPClient.h>
-#include <esp_now.h>
+unsigned long upTime        = 0;            //更新数据时间变量
+unsigned long printTime     = 0;            //串口打印时间变量
+unsigned long showIPTime    = 0;            //ip时间变量
+unsigned long tempGetTime   = 0;            //获取温度时间变量
+unsigned long temCheckTime  = 0;            //温检时间变量
+float hum                   = 20;           //湿度
+float tem                   = 20;           //温度
+int   position              = 0;            //开关位置
+bool  sysOpenFlag           = true;         //系统启动温检控制
+bool  showIPFlag            = false;        //ip通信标志位
+bool  moveDir               = true;         //步进电机方向
+const char* PARAM_MESSAGE   = "message";    //setValue信息
+DHT dht(DHTPIN, DHTTYPE);                   //dht11设定
+AsyncWebServer   server(80);                //在端口80上创建AsyncWebServer对象
+AsyncEventSource events("/events");         //创建事件源/events
+CheapStepper stepper (IN1, IN2, IN3, IN4);  //步进电机引脚设定
+U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ SCL, /* data=*/ SDA, /* reset=*/ U8X8_PIN_NONE);   //OLED
+struct Button {
+  int buttonState     = LOW;                //按钮状态变量
+  int lastButtonState = HIGH;               //按钮状态初始化
+  int buttonPushNum   = 0;                  //记录按钮按键次数
+  boolean flag;                             //判断标志
+  long lastDebounceTime = 0;                //记录抖动变量
+  long debounceDelay    = 50;               //抖动时间变量50ms
+};
+Button button[5];                           //新建1个按钮
 
-/***********************************************************************************
- ***********************************************************************************
-                                  Define Pins
- ***********************************************************************************
- **********************************************************************************/
-//#define LED_BUILTIN 2 // Pin D2 mapped to pin GPIO2/ADC12 of ESP32, control on-board LED
-
-#define PIN_D0 0 // Pin D0 mapped to pin GPIO0/BOOT/ADC11/TOUCH1 of ESP32
-#define PIN_D1 1 // Pin D1 mapped to pin GPIO1/TX0 of ESP32
-#define PIN_D2 2 // Pin D2 mapped to pin GPIO2/ADC12/TOUCH2 of ESP32
-#define PIN_D3 3 // Pin D3 mapped to pin GPIO3/RX0 of ESP32
-#define PIN_D4 4 // Pin D4 mapped to pin GPIO4/ADC10/TOUCH0 of ESP32
-#define PIN_D5 5 // Pin D5 mapped to pin GPIO5/SPISS/VSPI_SS of ESP32
-#define PIN_D6 6 // Pin D6 mapped to pin GPIO6/FLASH_SCK of ESP32
-#define PIN_D7 7 // Pin D7 mapped to pin GPIO7/FLASH_D0 of ESP32
-#define PIN_D8 8 // Pin D8 mapped to pin GPIO8/FLASH_D1 of ESP32
-#define PIN_D9 9 // Pin D9 mapped to pin GPIO9/FLASH_D2 of ESP32
-
-#define PIN_D10 10 // Pin D10 mapped to pin GPIO10/FLASH_D3 of ESP32
-#define PIN_D11 11 // Pin D11 mapped to pin GPIO11/FLASH_CMD of ESP32
-#define PIN_D12 12 // Pin D12 mapped to pin GPIO12/HSPI_MISO/ADC15/TOUCH5/TDI of ESP32
-#define PIN_D13 13 // Pin D13 mapped to pin GPIO13/HSPI_MOSI/ADC14/TOUCH4/TCK of ESP32
-#define PIN_D14 14 // Pin D14 mapped to pin GPIO14/HSPI_SCK/ADC16/TOUCH6/TMS of ESP32
-#define PIN_D15 15 // Pin D15 mapped to pin GPIO15/HSPI_SS/ADC13/TOUCH3/TDO of ESP32
-#define PIN_D16 16 // Pin D16 mapped to pin GPIO16/TX2 of ESP32
-#define PIN_D17 17 // Pin D17 mapped to pin GPIO17/RX2 of ESP32
-#define PIN_D18 18 // Pin D18 mapped to pin GPIO18/VSPI_SCK of ESP32
-#define PIN_D19 19 // Pin D19 mapped to pin GPIO19/VSPI_MISO of ESP32
-
-#define PIN_D21 21 // Pin D21 mapped to pin GPIO21/SDA of ESP32
-#define PIN_D22 22 // Pin D22 mapped to pin GPIO22/SCL of ESP32
-#define PIN_D23 23 // Pin D23 mapped to pin GPIO23/VSPI_MOSI of ESP32
-#define PIN_D24 24 // Pin D24 mapped to pin GPIO24 of ESP32
-#define PIN_D25 25 // Pin D25 mapped to pin GPIO25/ADC18/DAC1 of ESP32
-#define PIN_D26 26 // Pin D26 mapped to pin GPIO26/ADC19/DAC2 of ESP32
-#define PIN_D27 27 // Pin D27 mapped to pin GPIO27/ADC17/TOUCH7 of ESP32
-
-#define PIN_D32 32 // Pin D32 mapped to pin GPIO32/ADC4/TOUCH9 of ESP32
-#define PIN_D33 33 // Pin D33 mapped to pin GPIO33/ADC5/TOUCH8 of ESP32
-#define PIN_D34 34 // Pin D34 mapped to pin GPIO34/ADC6 of ESP32
-
-// Only GPIO pin < 34 can be used as output. Pins >= 34 can be only inputs
-// See .../cores/esp32/esp32-hal-gpio.h/c
-//#define digitalPinIsValid(pin)          ((pin) < 40 && esp32_gpioMux[(pin)].reg)
-//#define digitalPinCanOutput(pin)        ((pin) < 34 && esp32_gpioMux[(pin)].reg)
-//#define digitalPinToRtcPin(pin)         (((pin) < 40)?esp32_gpioMux[(pin)].rtc:-1)
-//#define digitalPinToAnalogChannel(pin)  (((pin) < 40)?esp32_gpioMux[(pin)].adc:-1)
-//#define digitalPinToTouchChannel(pin)   (((pin) < 40)?esp32_gpioMux[(pin)].touch:-1)
-//#define digitalPinToDacChannel(pin)     (((pin) == 25)?0:((pin) == 26)?1:-1)
-
-#define PIN_D35 35 // Pin D35 mapped to pin GPIO35/ADC7 of ESP32
-#define PIN_D36 36 // Pin D36 mapped to pin GPIO36/ADC0/SVP of ESP32
-#define PIN_D39 39 // Pin D39 mapped to pin GPIO39/ADC3/SVN of ESP32
-
-#define PIN_RX0 3 // Pin RX0 mapped to pin GPIO3/RX0 of ESP32
-#define PIN_TX0 1 // Pin TX0 mapped to pin GPIO1/TX0 of ESP32
-
-#define PIN_SCL 22 // Pin SCL mapped to pin GPIO22/SCL of ESP32
-#define PIN_SDA 21 // Pin SDA mapped to pin GPIO21/SDA of ESP32
-
-/***********************************************************************************
- ***********************************************************************************
-                                      WiFi Setup
- ***********************************************************************************
- **********************************************************************************/
-AsyncWebServer webServer(80);
-DNSServer dnsServer;
-
-/***********************************************************************************
- ***********************************************************************************
-                                      NTP Setup
- ***********************************************************************************
- **********************************************************************************/
-WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP);
-
-String formattedDate;
-String dayStamp;
-String timeStamp;
-
-/***********************************************************************************
- ***********************************************************************************
-                                      OLED Setup
- ***********************************************************************************
- **********************************************************************************/
-#ifdef U8X8_HAVE_HW_SPI
-#include <SPI.h>
-#endif
-#ifdef U8X8_HAVE_HW_I2C
-#include <Wire.h>
-#endif
-
-U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, /* clock=*/PIN_SCL, /* data=*/PIN_SDA, /* reset=*/U8X8_PIN_NONE);
-
-/***********************************************************************************
- ***********************************************************************************
-                                  Button Setup
- ***********************************************************************************
- **********************************************************************************/
-#define BUTTON_A PIN_D26
-#define BUTTON_B PIN_D25
-#define BUTTON_C PIN_D33
-#define BUTTON_D PIN_D32
-
-/***********************************************************************************
- ***********************************************************************************
-                                  Webserver setup
- ***********************************************************************************
- **********************************************************************************/
-bool ledState = 0;
-AsyncWebServer server(80);
-AsyncWebSocket ws("/ws");
-String message = "";
-// Variables to save values from HTML form
-String direction = "STOP";
-String steps;
-String timeOn;
-
-bool newRequest = false;
-
-// Initialize SPIFFS (SPIFFS is the file system the ESP32 uses)
-void initSPIFFS()
-{
-  if (!SPIFFS.begin(true))
-  {
-    Serial.println("An error has occurred while mounting SPIFFS");
+void initSPIFFS() {                                     //初始化SPIFFS
+  if (!SPIFFS.begin()) {
+    Serial.println("An error has occurred while mounting SPIFFS");//失败
   }
-  else
-  {
-    Serial.println("SPIFFS mounted successfully");
+  Serial.println("SPIFFS mounted successfully");        //成功
+}
+void initWiFi() {                                       //初始化WiFi
+  WiFi.mode(WIFI_STA);                                  //STA模式
+  WiFiManager wm;                                       //声明
+  //wm.resetSettings();                                 //重置wifi连接信息
+  bool res;                                             //获取连接情况
+  res = wm.autoConnect("TemCtrl", "12345678");          //wifi 名称 密码
+  if (!res) {
+    Serial.println("Failed to connect");                //未连接
+    // ESP.restart();
+  }
+  else {
+    Serial.println("connected...yeey :)");              //连接完成
+    Serial.println(WiFi.localIP());                     //WiFiip串口打印
+    showIPFlag = true;                                  //显示一次ip
+    dht.begin();                                        //dht11初始化
+    server.addHandler(&events);                         //链接事件源和服务器
+    server.begin();                                     //启动服务器
   }
 }
-
-void notifyClients(String state)
-{
-  ws.textAll(state);
+void oledShow(float tem, float set) {                   //Oled显示
+  u8g2.clearBuffer();                                      
+  u8g2.drawStr(0, 10, "Temp:");                                      
+  u8g2.setCursor(70, 10);                                          
+  u8g2.print(String(tem));                                                    
+  u8g2.drawStr(0, 20, "Set Value:");                     
+  u8g2.setCursor(70, 20);                                                                
+  u8g2.print(String(set));                                                                 
+  if (sysOpenFlag == true) {                                                     
+    u8g2.drawStr(0, 30, "SystemState: ON");                                      
+  }                                                                            
+  if (sysOpenFlag == false) {                                                    
+    u8g2.drawStr(0, 30, "SystemState: OFF");                                         
+  }                                                                            
+  u8g2.sendBuffer();                                                                           
+}                                                                                    
+void oledInit() {                                       //Oled初始化显示                    
+  u8g2.clearBuffer();                                                        
+  u8g2.setFont(u8g2_font_ncenB08_tr);                                          
+  u8g2.drawStr(0, 10, "Temp:      ");                                                                          
+  u8g2.drawStr(0, 20, "Set Value: ");           
+  u8g2.drawStr(0, 30, "SystemState: Start");               
+  u8g2.sendBuffer();
 }
-
-void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
-{
-  AwsFrameInfo *info = (AwsFrameInfo *)arg;
-
-  if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT)
-  {
-    data[len] = 0;
-    // message is the data sent to the ESP when the 'submit' button is pressed
-    message = (char *)data;
-    // right now we have three variables we recieve in the message string
-    // they are seperated by an "&"
-    // indexOfFirst is the position of the first "&"
-    // indexOfSec is the positon of the second "&"
-    int indexOfFirst = message.indexOf("&");
-    int indexOfSec = message.indexOf("&", indexOfFirst + 1);
-    // steps is the value between the beginning of the string and "&"
-    steps = message.substring(0, message.indexOf("&"));
-    // direction is the value between the first "&" and second
-    direction = message.substring(indexOfFirst + 1, indexOfSec);
-    // timeOn is the value between the second "&" and the end of the string
-    timeOn = message.substring(indexOfSec + 1, message.length());
-    // printout information recived from website
-    Serial.print("steps");
-    Serial.println(steps);
-    Serial.print("direction");
-    Serial.println(direction);
-    Serial.print("timeOn");
-    Serial.println(timeOn);
-    // tell the server that the motor is spinning to animate the gear icon
-    notifyClients(direction);
-    newRequest = true;
+void stepRun(int angle) {                               // -360° - 0 - 360°
+  int   turnAngle = 0;                                  //转动角度
+  if (angle >= 0 && angle < 360) {
+    turnAngle = map(angle, 0, 360, 0, 4095);
+    moveDir = true;
+  }
+  if (angle >= -360 && angle < 0) {
+    turnAngle = map(angle, -360, 0, 4095, 0);
+    moveDir = false;
+  }
+  for (int s = 0; s < turnAngle; s++) {
+    stepper.step(moveDir);
   }
 }
-
-void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len)
-{
-  switch (type)
-  {
-  case WS_EVT_CONNECT:
-    Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
-    // Notify client of motor current state when it first connects
-    notifyClients(direction);
-    break;
-  case WS_EVT_DISCONNECT:
-    Serial.printf("WebSocket client #%u disconnected\n", client->id());
-    break;
-  case WS_EVT_DATA:
-    handleWebSocketMessage(arg, data, len);
-    break;
-  case WS_EVT_PONG:
-  case WS_EVT_ERROR:
-    break;
+void oledShowIp() {                                     //显示IP
+  u8g2.clearBuffer();
+  u8g2.drawStr(0, 10, "IP:");
+  u8g2.setCursor(32, 10);
+  u8g2.print(WiFi.localIP());
+  u8g2.sendBuffer();
+}
+void keyCheck(int button_Pin, int button_num) {
+  int reading = digitalRead(button_Pin);                             //读取按键状态并存储到变量中
+  if (reading != button[button_num].lastButtonState) {               //检查下按键状态是否改变
+    button[button_num].lastDebounceTime = millis();                  //如果发生改变，更新时间
   }
+  if ((millis() - button[button_num].lastDebounceTime) > button[button_num].debounceDelay) {
+    if (reading != button[button_num].buttonState) {                 //如果按键状态改变了:
+      button[button_num].buttonState = reading;                      //记录按键状态
+      if (button[button_num].buttonState == LOW) {                   //只有当稳定的按键状态时才改变LED状态
+        button[button_num].buttonPushNum++;                          //此时按键次数自增
+        button[button_num].flag = true;                              //记录按键状态到按键标志flag
+        if (button_Pin == buttonA) {                               //前进并在200ms后检测电流
+          sysOpenFlag = true;                                           //切换状态
+          u8g2.clearBuffer();
+          u8g2.drawStr(0, 10, "Temp:");                                      
+          u8g2.setCursor(70, 10);                                          
+          u8g2.print(String(tem));                                                    
+          u8g2.drawStr(0, 20, "Set Value:");                     
+          u8g2.setCursor(70, 20);                                                                
+          u8g2.print(String(setValue)); 
+          u8g2.drawStr(0, 30, "                 ");                                                                                                         
+          u8g2.sendBuffer(); 
+          u8g2.drawStr(0, 30, "SystemState: ON  ");                                                                                                         
+          u8g2.sendBuffer();  
+          Serial.println("A");
+          char buf[20];
+          sprintf(buf, "%s", "System State: ON");                             //OFF
+          events.send(buf, "systemstate", millis());
+        }
+        if (button_Pin == buttonB) {                               //前进并在200ms后检测电流
+          sysOpenFlag = false;                                           //切换状态
+          u8g2.clearBuffer();
+          u8g2.drawStr(0, 10, "Temp:");                                      
+          u8g2.setCursor(70, 10);                                          
+          u8g2.print(String(tem));                                                    
+          u8g2.drawStr(0, 20, "Set Value:");                     
+          u8g2.setCursor(70, 20);                                                                
+          u8g2.print(String(setValue)); 
+          u8g2.drawStr(0, 30, "SystemState: OFF ");                                                                                                         
+          u8g2.sendBuffer();   
+          Serial.println("B");
+          char buf[20];
+          sprintf(buf, "%s", "System State: OFF");                             //OFF
+          events.send(buf, "systemstate", millis());
+        }
+        if (button_Pin == buttonC) {
+          Serial.println("C");
+        }
+        if (button_Pin == buttonD) {
+          Serial.println("D");
+        }
+      }
+      else {
+        //button[button_num].flag = false;                             //如果按键没有改变，那么记录按键状态为false
+      }
+    }
+  }
+  button[button_num].lastButtonState = reading;                      // 保存处理结果:
 }
 
-void initWebSocket()
-{
-  ws.onEvent(onEvent);
-  server.addHandler(&ws);
-}
-
-/***********************************************************************************
- ***********************************************************************************
-                                  Stepper Motor initialize
- ***********************************************************************************
- **********************************************************************************/
-// 28BYJ-48 uses 2048 setps per revolution
-const int stepsPerRevolution = 2048;
-#define IN1 PIN_D19
-#define IN2 PIN_D18
-#define IN3 PIN_D5
-#define IN4 PIN_D17
-
-// Set up stepper motor with correct wire configuration IN1, IN3, IN2, IN4
-Stepper myStepper(stepsPerRevolution, IN1, IN3, IN2, IN4);
-bool heatOn = false;
-
-/***********************************************************************************
- ***********************************************************************************
-                                  DHT11 Setup
- ***********************************************************************************
- **********************************************************************************/
-#define DHTTYPE DHT11  // DHT 11
-#define DHTPIN PIN_D27 // Pin 27
-
-// setup the DHT sensor
-DHT dht(DHTPIN, DHTTYPE);
-
-// Define a time (in milliseconds) between sensor reads
-#define DHT_UPDATE_DELAY 5000
-
-float nowTemp = 0;
-float highTemp = 80.00;
-float lowTemp = 75.00;
-
-/***********************************************************************************
- ***********************************************************************************
-                                  millis() Setup
- ***********************************************************************************
- **********************************************************************************/
-int currentMillis = 0;
-int updateMillis = 0;
-
-/***********************************************************************************
- ***********************************************************************************
-                                  setup Function
- ***********************************************************************************
- **********************************************************************************/
-void setup()
-{
-  // begin serial
-  Serial.begin(115200);
-  while (!Serial)
-    ;
-  // delay to make sure Serial is connected before next operation
-  delay(200);
-
-  // Setup Display
-  u8g2.begin();
-
-  // Setup Button
-
-  pinMode(BUTTON_A, INPUT_PULLUP);
-  pinMode(BUTTON_B, INPUT_PULLUP);
-  pinMode(BUTTON_C, INPUT_PULLUP);
-  pinMode(BUTTON_D, INPUT_PULLUP);
-
-  Serial.print("\nStarting Async_AutoConnect_ESP32_minimal on " + String(ARDUINO_BOARD));
-  Serial.println(ESP_ASYNC_WIFIMANAGER_VERSION);
-  ESPAsync_WiFiManager ESPAsync_wifiManager(&webServer, &dnsServer, "Async_AutoConnect");
-  // ESPAsync_wifiManager.resetSettings();   //reset saved settings
-  ESPAsync_wifiManager.setAPStaticIPConfig(IPAddress(192, 168, 132, 1), IPAddress(192, 168, 132, 1), IPAddress(255, 255, 255, 0));
-  ESPAsync_wifiManager.autoConnect("AutoConnectAP");
-  u8g2.clearBuffer();                    // clear the internal memory
-  u8g2.setFont(u8g2_font_ncenB08_tr);    // choose a suitable font
-  u8g2.drawStr(0, 10, "Connect to AP!"); // write something to the internal memory
-  u8g2.drawStr(0, 20, "192.168.132.1");
-  u8g2.sendBuffer(); // transfer internal memory to the display
-  Serial.print("\nConnect to the AutoConnectAP Access Point and point your browser to:192.168.132.1\n");
-  delay(2000);
-  if (WiFi.status() == WL_CONNECTED)
-  {
-
-    Serial.print(F("Connected. Local IP: "));
-    Serial.println(WiFi.localIP());
-    u8g2.clearBuffer();                        // clear the internal memory
-    u8g2.setFont(u8g2_font_ncenB08_tr);        // choose a suitable font
-    u8g2.drawStr(0, 10, "Connected to Wifi!"); // write something to the internal memory
-    u8g2.drawStr(0, 20, WiFi.localIP().toString().c_str());
-    u8g2.sendBuffer(); // transfer internal memory to the display
-  }
-  else
-  {
-    Serial.println(ESPAsync_wifiManager.getStatus(WiFi.status()));
-  }
-
-  // setup websocket
-  initWebSocket();
-  // setup SPIFFS
-  initSPIFFS();
-  // set the stepper speed
-  myStepper.setSpeed(5);
-  // Setup DHT
-  dht.begin();
-  // Web Server Root URL
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
-            { request->send(SPIFFS, "/index.html", "text/html"); });
-
+void setup() {
+  Serial.begin(115200);                                 //初始化波特率115200
+  pinMode(buttonA,INPUT_PULLUP);                        //引脚设置输入上拉
+  pinMode(buttonB,INPUT_PULLUP);                        //引脚设置输入上拉
+  pinMode(buttonC,INPUT_PULLUP);                        //引脚设置输入上拉
+  pinMode(buttonD,INPUT_PULLUP);                        //引脚设置输入上拉
+  u8g2.begin();                                         //oled初始化
+  oledInit();                                           //oled显示初始化
+  initWiFi();                                           //初始化WIFI
+  initSPIFFS();                                         //初始化文件系统
+  
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {         //处理Web服务器
+    request->send(SPIFFS, "/index.html", "text/html");                   //连接SPIFFS和index.html
+  });
   server.serveStatic("/", SPIFFS, "/");
-  // Starts the webserver on the ESP device
-  server.begin();
+  server.on("/showip", HTTP_GET, [](AsyncWebServerRequest * request) {   //创建一个地址 指令显示ip
+    showIPTime = millis();
+    showIPFlag = true;                                                   //IPshow
+    Serial.println("showIP");
+    request->send(200, "text/plain", "OK");
+  });
+  server.on("/open", HTTP_GET, [](AsyncWebServerRequest * request) {     //创建一个地址
+    sysOpenFlag = true ;
+    char buf[20];
+    sprintf(buf, "%s", "System State: ON");                              //ON
+    events.send(buf, "systemstate", millis());
+    request->send(200, "text/plain", "OK");
+  });
+  server.on("/close", HTTP_GET, [](AsyncWebServerRequest * request) {    //创建一个地址
+    sysOpenFlag = false ;
+    char buf[20];
+    sprintf(buf, "%s", "System State: OFF");                             //OFF
+    events.send(buf, "systemstate", millis());
+    request->send(200, "text/plain", "OK");
+  });
+  server.on("/setvalue", HTTP_GET, [](AsyncWebServerRequest * request) { //创建一个地址
+    String message;
+    if (request->hasParam(PARAM_MESSAGE)) {
+      //Serial.println(request->getParam(PARAM_MESSAGE))->value());
+      message = request->getParam(PARAM_MESSAGE)->value();
+    } else {
+      message = "No message sent";
+    }
+    setValue = message.toFloat();
+    u8g2.clearBuffer();
+    u8g2.drawStr(0, 10, "Temp:");                                      
+    u8g2.setCursor(70, 10);                                          
+    u8g2.print(String(tem));                                                    
+    u8g2.drawStr(0, 20, "Set Value:");                     
+    u8g2.setCursor(70, 20);                                                                
+    u8g2.print(String(setValue)); 
+    if(sysOpenFlag == true ){
+      u8g2.drawStr(0, 30, "SystemState: OFF ");    
+    }
+    if(sysOpenFlag == false ){
+      u8g2.drawStr(0, 30, "SystemState: OFF ");    
+    }
+    u8g2.sendBuffer();   
+    if (sysOpenFlag == true && (!isnan(tem))) {                                //不显示ip和读数有数时，刷新oled
+        if (position == 0 && tem < setValue) {                                    //当pos在0（暂定空调关闭） 同时 实时温度小于设定温度  。冷了，开启加热。(关闭空调，不加热）
+          position = 1;                                                           //更新开关位置
+          stepRun(180);                                                           //开启 加热
+        }
+        if (position == 1 && tem > setValue) {                                    //当pos在1（暂定空调开启） 同时 实时温度大于设定温度  。热了，关闭空调。(开启空调，加热）
+          position = 0;                                                           //更新开关位置
+          stepRun(-180);                                                          //关闭 加热
+        }
+    }
+    Serial.println(message);
+    request->send(200, "text/plain", "OK");
+  });
+  events.onConnect([](AsyncEventSourceClient * client) {              //处理Web服务器事件
+    if (client->lastId()) {
+      Serial.printf("Client reconnected! Last message ID that it got is: %u\n", client->lastId());
+    }
+    client->send("hello!", NULL, millis(), 10000);
+  });
 
-  // Setup for time
-  timeClient.begin();
-  // Set offset time in seconds to adjust for your timezone, for example:
-  // GMT +1 = 3600
-  // GMT +8 = 28800
-  // GMT -1 = -3600
-  // GMT 0 = 0
-  // PST is GMT -8
-  //  3600*-8 = -28800
-  timeClient.setTimeOffset(-28800);
+  upTime = millis();                                     //更新时间
+  temCheckTime = millis();                               //温检时间
+  tempGetTime  = millis();                               //温度时间
+  showIPTime   = millis();                               //ip时间
+  printTime    = millis();                               //打印时间
 }
 
-/***********************************************************************************
- ***********************************************************************************
-                                  loop Function
- ***********************************************************************************
- **********************************************************************************/
-void loop()
-{
-  // int buttonStateA = 0;
-  // int buttonStateB = 0;
-
-  //  current time is the current time pulled from timeClient.getEpochTime();
-  // int currentTime;
-
-  // The updateTime is going to be the delay has expired.
-  //  It is a static int set at zero because we want it to initally
-  //  but we don't want it set at zero every time we enter the loop.
-  //  It doesn't have to be zero, but it needs to be less than the
-  //  current Epoch time because we want to trigger the read temp settings
-  //  the first time.
-  static int updateTime = 0;
-
-  // Time client setup
-  while (!timeClient.update())
-  {
-    timeClient.forceUpdate();
+void loop() {                  
+  keyCheck(buttonA, 1);                   //按键检测
+  keyCheck(buttonB, 2);                   //按键检测                           /主程序
+  keyCheck(buttonC, 3);                   //按键检测
+  keyCheck(buttonD, 4);                   //按键检测
+  if (showIPFlag == true) {                                                     //显示ip指令get
+    oledShowIp();                                                               //OLED显示
   }
-
-  /*   // The formattedDate comes with the following format:
-    // 2018-05-28T16:00:13Z
-    // We need to extract date and time
-    formattedDate = timeClient.getFormattedDate();
-    Serial.println(formattedDate);
-
-    // Extract date
-    int splitT = formattedDate.indexOf("T");
-    dayStamp = formattedDate.substring(0, splitT);
-    Serial.print("DATE: ");
-    Serial.println(dayStamp);
-    // Extract time
-    timeStamp = formattedDate.substring(splitT+1, formattedDate.length()-1);
-    Serial.print("HOUR: ");
-    Serial.println(timeStamp); */
-
-  if (newRequest)
-  {
-    if (direction == "CW")
-    {
-      myStepper.step(steps.toInt());
-      Serial.print("CW");
-    }
-    else
-    {
-      myStepper.step(-steps.toInt());
-    }
-    newRequest = false;
-    notifyClients("stop");
+  if ( (showIPFlag == true) && ((millis() - showIPTime) > showIPTimeMax  )) {   //ip显示完成
+    showIPTime = millis();                                                      //更新时间
+    showIPFlag = false;                                                         //重置显示标志位
+    oledShowIp();                                                               //屏幕显示IP
   }
-  ws.cleanupClients();
-  // To prevent watchdog error, the program will make 100 steps each
-  // cycle the program makes through loop().  When button is released,
-  // the motor stops moving.
-  if (digitalRead(BUTTON_A) == LOW)
-    myStepper.step(100);
-  if (digitalRead(BUTTON_B) == LOW)
-    myStepper.step(-100);
-
-  if (digitalRead(BUTTON_C) == LOW)
-  {
-    Serial.print("Button C pressed");
+  if ((millis() - upTime) > upTimeMax) {                                      //上传数据到web
+    upTime = millis();                                                        //更新时间
+    char buf[5], buf2[5];                                                     //新建char[]
+    if (!isnan(tem)) {                                                        //温度不为空
+      sprintf(buf, "%s", String(tem));                                        //int转char[]
+      events.send(buf, "temp", millis());                                     //上传实时温度
+    }                                                                         
+    delay(100);                                                               //延时一会
+    sprintf(buf2, "%s", String(setValue));                                    //转换变量
+    events.send(buf2, "temptag", millis());                                   //上传目标温度
   }
-
-  if (digitalRead(BUTTON_D) == LOW)
-  {
-    Serial.print("Button D pressed");
-  }
-  // Wait a few seconds between measurements.
-  // Epoch time is the date in one long integer which makes it easy to compare time
-  // between the last sample time and the current time
-  if (millis() > updateMillis)
-  {
-    // Reading temperature or humidity takes about 250 milliseconds!
-    // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-    float h = dht.readHumidity();
-    // Read temperature as Celsius (the default)
-    float t = dht.readTemperature();
-    // Read temperature as Fahrenheit (isFahrenheit = true)
-    float f = dht.readTemperature(true);
-    nowTemp = f;
-    // Check if any reads failed and exit early (to try again).
-    if (isnan(h) || isnan(t) || isnan(f))
-    {
-      Serial.println(F("Failed to read from DHT sensor!"));
-      return;
-    }
-
-    // Compute heat index in Fahrenheit (the default)
-    float hif = dht.computeHeatIndex(f, h);
-    // Compute heat index in Celsius (isFahreheit = false)
-    float hic = dht.computeHeatIndex(t, h, false);
-    char str[25];
-    u8g2.clearBuffer();
-    Serial.print(F("Humidity: "));
-    u8g2.drawStr(0, 10, "Humidity: ");
-    dtostrf(h, 3, 2, str);
-    u8g2.drawStr(100, 10, str);
-    Serial.print(h);
-    Serial.print(F("%  Temperature: "));
-    u8g2.drawStr(0, 20, "Temperature: ");
-    dtostrf(f, 3, 2, str);
-    u8g2.drawStr(100, 20, str);
-    Serial.print(t);
-    Serial.print(F("°C "));
-    Serial.print(f);
-    Serial.print(F("°F  Heat index: "));
-    Serial.print(hic);
-    Serial.print(F("°C "));
-    Serial.print(hif);
-    Serial.println(F("°F"));
-    u8g2.sendBuffer();
-
-    // Set current time to
-    // currentTime = timeClient.getEpochTime();
-    updateMillis = millis() + DHT_UPDATE_DELAY;
-
-    if (nowTemp < lowTemp && !heatOn)
-    {
-      myStepper.step(-1000);
-      heatOn = true;
-    }
-    if (nowTemp > highTemp && heatOn)
-    {
-      myStepper.step(1000);
-      heatOn = false;
+  if (millis() - tempGetTime >= tempGetTimeMax) {                             //获取温度数据
+    tempGetTime = millis();                                                   //更新时间
+    tem = dht.readTemperature();                                              //获取温度
+    Serial.print(F("Temperature: "));                                         //串口打印
+    Serial.print(tem);Serial.println(F("°C "));
+    if (showIPFlag != true && (!isnan(tem))) {                                //不显示ip和读数有数时，刷新oled
+      oledShow(tem, setValue);
     }
   }
+  //系统启动才会检测是否超过温度/低于温度
+  //pos 0 1   默认0 加热空调不开   0是加热空调'关闭'位置  1是加热空调'开启'位置
+  if (sysOpenFlag == true) {
+    //暂定系统开启时，每2分钟检测一次，因为开关空调不是马上变温
+    if (millis() - temCheckTime >= temCheckTimeMax) {                           //2分钟检测一次
+
+      temCheckTime = millis();                                                  //更新时间
+      if (sysOpenFlag == true && (!isnan(tem))) {                                //不显示ip和读数有数时，刷新oled
+        if (position == 0 && tem < setValue) {                                    //当pos在0（暂定空调关闭） 同时 实时温度小于设定温度  。冷了，开启加热。(关闭空调，不加热）
+          position = 1;                                                           //更新开关位置
+          stepRun(180);                                                           //开启 加热
+        }
+        if (position == 1 && tem > setValue) {                                    //当pos在1（暂定空调开启） 同时 实时温度大于设定温度  。热了，关闭空调。(开启空调，加热）
+          position = 0;                                                           //更新开关位置
+          stepRun(-180);                                                          //关闭 加热
+        }
+      }
+    }
+  }
+  
 }
