@@ -9,78 +9,78 @@
 #include <CheapStepper.h>                   //包含"CheapStepper.h"头文件
 #include <Arduino_JSON.h>                   //包含"Arduino_JSON.h"头文件
 #include <Adafruit_Sensor.h>                //包含"Adafruit_Sensor.h"头文件
-#include <ESPAsyncWebServer.h>              //包含"ESPAsyncWebServer.h"头文件
-#define IN1               19                //步进电机控制引脚
-#define IN2               18                //步进电机控制引脚
-#define IN3               5                 //步进电机控制引脚
-#define IN4               17                //步进电机控制引脚
-#define DHTPIN            27                //dht11控制引脚
-#define buttonA           33                //按键引脚
-#define buttonB           26                //按键引脚
-#define buttonC           25                //按键引脚
-#define buttonD           14                //按键引脚
-#define DHTTYPE           DHT11             //dht11引脚
-#define tempGetTimeMax    2000              //dht11获取温度时间
-#define printTimeMax      500               //串口打印时间
-#define upTimeMax         500               //上传web时间
-#define showIPTimeMax     3000              //有IP网络时候的显示时间
-//#define temCheckTimeMax 120000            //温度检查时间120s
-#define temCheckTimeMax   200               //测试用 温度检查时间 200ms
-float setValue              = 20;           //初始设置温度
+#include <ESPAsyncWebServer.h>              //包含"ESPAsyncWebServer.h"头文件 nclude "ESPAsyncWebServer.h" header file
+#define IN1               19                //步进电机控制引脚   Stepper motor control pin
+#define IN2               18                //步进电机控制引脚   Stepper motor control pin
+#define IN3               5                 //步进电机控制引脚   Stepper motor control pin
+#define IN4               17                //步进电机控制引脚   Stepper motor control pin
+#define DHTPIN            27                //dht11控制引脚     dht11 control pin
+#define buttonA           33                //按键引脚          Key pin
+#define buttonB           26                //按键引脚          Key pin
+#define buttonC           25                //按键引脚          Key pin
+#define buttonD           14                //按键引脚          Key pin
+#define DHTTYPE           DHT11             //dht11引脚         dht11 pin
+#define tempGetTimeMax    2000              //dht11获取温度时间   dht11 get temperature time
+#define printTimeMax      500               //串口打印时间        Serial print time
+#define upTimeMax         500               //上传web时间        Upload web time 
+#define showIPTimeMax     3000              //有IP网络时候的显示时间  Display time when there is an IP network
+//#define temCheckTimeMax 120000            //温度检查时间120s      Temperature check time 120s
+#define temCheckTimeMax   200               //测试用 温度检查时间 200ms Temperature check time for test 200ms
+float setValue              = 20;           //初始设置温度        Initial setting temperature
 
-unsigned long upTime        = 0;            //更新数据时间变量
-unsigned long printTime     = 0;            //串口打印时间变量
-unsigned long showIPTime    = 0;            //ip时间变量
-unsigned long tempGetTime   = 0;            //获取温度时间变量
-unsigned long temCheckTime  = 0;            //温检时间变量
-float hum                   = 20;           //湿度
-float tem                   = 20;           //温度
-int   position              = 0;            //开关位置
-bool  sysOpenFlag           = true;         //系统启动温检控制
-bool  showIPFlag            = false;        //ip通信标志位
-bool  moveDir               = true;         //步进电机方向
-const char* PARAM_MESSAGE   = "message";    //setValue信息
-DHT dht(DHTPIN, DHTTYPE);                   //dht11设定
-AsyncWebServer   server(80);                //在端口80上创建AsyncWebServer对象
-AsyncEventSource events("/events");         //创建事件源/events
-CheapStepper stepper (IN1, IN2, IN3, IN4);  //步进电机引脚设定
+unsigned long upTime        = 0;            //更新数据时间变量    Update data time variable
+unsigned long printTime     = 0;            //串口打印时间变量    Serial printing time variable
+unsigned long showIPTime    = 0;            //ip时间变量          ip time variable
+unsigned long tempGetTime   = 0;            //获取温度时间变量    Get temperature time variable
+unsigned long temCheckTime  = 0;            //温检时间变量        Temperature check time variable
+float hum                   = 20;           //湿度                humidity
+float tem                   = 20;           //温度                temperature
+int   position              = 0;            //开关位置            Switch position
+bool  sysOpenFlag           = true;         //系统启动温检控制      System start temperature check control
+bool  showIPFlag            = false;        //ip通信标志位          ip通信标志位
+bool  moveDir               = true;         //步进电机方向        Step motor direction
+const char* PARAM_MESSAGE   = "message";    //setValue信息        setValue information
+DHT dht(DHTPIN, DHTTYPE);                   //dht11设定           dht11 settings
+AsyncWebServer   server(80);                //在端口80上创建AsyncWebServer对象  Create AsyncWebServer object on port 80
+AsyncEventSource events("/events");         //创建事件源/events     Create event source/events
+CheapStepper stepper (IN1, IN2, IN3, IN4);  //步进电机引脚设定        Stepper motor pin settings
 U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ SCL, /* data=*/ SDA, /* reset=*/ U8X8_PIN_NONE);   //OLED
 struct Button {
-  int buttonState     = LOW;                //按钮状态变量
-  int lastButtonState = HIGH;               //按钮状态初始化
-  int buttonPushNum   = 0;                  //记录按钮按键次数
-  boolean flag;                             //判断标志
-  long lastDebounceTime = 0;                //记录抖动变量
-  long debounceDelay    = 50;               //抖动时间变量50ms
+  int buttonState     = LOW;                //按钮状态变量      Button state variables
+  int lastButtonState = HIGH;               //按钮状态初始化    Button state initialization
+  int buttonPushNum   = 0;                  //记录按钮按键次数  Record the number of button presses
+  boolean flag;                             //判断标志          Judgment mark
+  long lastDebounceTime = 0;                //记录抖动变量        Record jitter variables
+  long debounceDelay    = 50;               //抖动时间变量50ms    Jitter time variable 50ms
 };
-Button button[5];                           //新建1个按钮
+Button button[5];                           //新建1个按钮         Create a new button
 
-void initSPIFFS() {                                     //初始化SPIFFS
+void initSPIFFS() {                                     //初始化SPIFFS  Initialize SPIFFS
   if (!SPIFFS.begin()) {
-    Serial.println("An error has occurred while mounting SPIFFS");//失败
+    Serial.println("An error has occurred while mounting SPIFFS");//失败  fail
   }
-  Serial.println("SPIFFS mounted successfully");        //成功
+  Serial.println("SPIFFS mounted successfully");        //成功          success
 }
-void initWiFi() {                                       //初始化WiFi
-  WiFi.mode(WIFI_STA);                                  //STA模式
-  WiFiManager wm;                                       //声明
-  //wm.resetSettings();                                 //重置wifi连接信息
-  bool res;                                             //获取连接情况
-  res = wm.autoConnect("TemCtrl", "12345678");          //wifi 名称 密码
+void initWiFi() {                                       //初始化WiFi    Initialize WiFi
+  WiFi.mode(WIFI_STA);                                  //STA模式       STA mode
+  WiFiManager wm;                                       //声明          statement
+  //wm.resetSettings();                                 //重置wifi连接信息  Reset wifi connection information
+  bool res;                                             //获取连接情况    Get connection status
+  res = wm.autoConnect("TemCtrl", "12345678");          //wifi 名称 密码  wifi name password
   if (!res) {
-    Serial.println("Failed to connect");                //未连接
+    Serial.println("Failed to connect");                //未连接        not connected
     // ESP.restart();
   }
   else {
-    Serial.println("connected...yeey :)");              //连接完成
-    Serial.println(WiFi.localIP());                     //WiFiip串口打印
-    showIPFlag = true;                                  //显示一次ip
-    dht.begin();                                        //dht11初始化
-    server.addHandler(&events);                         //链接事件源和服务器
-    server.begin();                                     //启动服务器
+    Serial.println("connected...yeey :)");              //连接完成          Connection complete
+    Serial.println(WiFi.localIP());                     //WiFiip串口打印    WiFiip serial printing
+    showIPFlag = true;                                  //Display once IP
+    dht.begin();                                        //DHT11 initialization
+    server.addHandler(&events);                         //Link event source and server
+    server.begin();                                     //Start server
   }
 }
-void oledShow(float tem, float set) {                   //Oled显示
+void oledShow(float tem, float set) {                   //OLED display
   u8g2.clearBuffer();                                      
   u8g2.drawStr(0, 10, "Temp:");                                      
   u8g2.setCursor(70, 10);                                          
@@ -96,7 +96,7 @@ void oledShow(float tem, float set) {                   //Oled显示
   }                                                                            
   u8g2.sendBuffer();                                                                           
 }                                                                                    
-void oledInit() {                                       //Oled初始化显示                    
+void oledInit() {                                       //OLED initialization display                    
   u8g2.clearBuffer();                                                        
   u8g2.setFont(u8g2_font_ncenB08_tr);                                          
   u8g2.drawStr(0, 10, "Temp:      ");                                                                          
@@ -105,7 +105,7 @@ void oledInit() {                                       //Oled初始化显示
   u8g2.sendBuffer();
 }
 void stepRun(int angle) {                               // -360° - 0 - 360°
-  int   turnAngle = 0;                                  //转动角度
+  int   turnAngle = 0;                                  //Rotational angle
   if (angle >= 0 && angle < 360) {
     turnAngle = map(angle, 0, 360, 0, 4095);
     moveDir = true;
@@ -118,7 +118,7 @@ void stepRun(int angle) {                               // -360° - 0 - 360°
     stepper.step(moveDir);
   }
 }
-void oledShowIp() {                                     //显示IP
+void oledShowIp() {                                     //Display IP
   u8g2.clearBuffer();
   u8g2.drawStr(0, 10, "IP:");
   u8g2.setCursor(32, 10);
@@ -126,18 +126,18 @@ void oledShowIp() {                                     //显示IP
   u8g2.sendBuffer();
 }
 void keyCheck(int button_Pin, int button_num) {
-  int reading = digitalRead(button_Pin);                             //读取按键状态并存储到变量中
-  if (reading != button[button_num].lastButtonState) {               //检查下按键状态是否改变
-    button[button_num].lastDebounceTime = millis();                  //如果发生改变，更新时间
+  int reading = digitalRead(button_Pin);                             //Read the button status and store the variable
+  if (reading != button[button_num].lastButtonState) {               //Check if the button status changes
+    button[button_num].lastDebounceTime = millis();                  //If you change, update time
   }
   if ((millis() - button[button_num].lastDebounceTime) > button[button_num].debounceDelay) {
-    if (reading != button[button_num].buttonState) {                 //如果按键状态改变了:
-      button[button_num].buttonState = reading;                      //记录按键状态
-      if (button[button_num].buttonState == LOW) {                   //只有当稳定的按键状态时才改变LED状态
-        button[button_num].buttonPushNum++;                          //此时按键次数自增
-        button[button_num].flag = true;                              //记录按键状态到按键标志flag
-        if (button_Pin == buttonA) {                               //前进并在200ms后检测电流
-          sysOpenFlag = true;                                           //切换状态
+    if (reading != button[button_num].buttonState) {                 //If the button status changes:
+      button[button_num].buttonState = reading;                      //Record button status
+      if (button[button_num].buttonState == LOW) {                   //The LED status is changed only when the stable button status is
+        button[button_num].buttonPushNum++;                          //At this point, the number of keys is added
+        button[button_num].flag = true;                              //Record button status to button logo Flag
+        if (button_Pin == buttonA) {                               //Advance and after 200 ms
+          sysOpenFlag = true;                                           //Switch status
           u8g2.clearBuffer();
           u8g2.drawStr(0, 10, "Temp:");                                      
           u8g2.setCursor(70, 10);                                          
@@ -154,8 +154,8 @@ void keyCheck(int button_Pin, int button_num) {
           sprintf(buf, "%s", "System State: ON");                             //OFF
           events.send(buf, "systemstate", millis());
         }
-        if (button_Pin == buttonB) {                               //前进并在200ms后检测电流
-          sysOpenFlag = false;                                           //切换状态
+        if (button_Pin == buttonB) {                               //Advance and after 200 ms
+          sysOpenFlag = false;                                           //Switch status
           u8g2.clearBuffer();
           u8g2.drawStr(0, 10, "Temp:");                                      
           u8g2.setCursor(70, 10);                                          
@@ -178,49 +178,49 @@ void keyCheck(int button_Pin, int button_num) {
         }
       }
       else {
-        //button[button_num].flag = false;                             //如果按键没有改变，那么记录按键状态为false
+        //button[button_num].flag = false;                             //If the button does not change, then the record button status is false.
       }
     }
   }
-  button[button_num].lastButtonState = reading;                      // 保存处理结果:
+  button[button_num].lastButtonState = reading;                      // Save processing results:
 }
 
 void setup() {
-  Serial.begin(115200);                                 //初始化波特率115200
-  pinMode(buttonA,INPUT_PULLUP);                        //引脚设置输入上拉
-  pinMode(buttonB,INPUT_PULLUP);                        //引脚设置输入上拉
-  pinMode(buttonC,INPUT_PULLUP);                        //引脚设置输入上拉
-  pinMode(buttonD,INPUT_PULLUP);                        //引脚设置输入上拉
-  u8g2.begin();                                         //oled初始化
-  oledInit();                                           //oled显示初始化
-  initWiFi();                                           //初始化WIFI
-  initSPIFFS();                                         //初始化文件系统
+  Serial.begin(115200);                                 //Initialization baud rate 115200
+  pinMode(buttonA,INPUT_PULLUP);                        //Pin setting input pull
+  pinMode(buttonB,INPUT_PULLUP);                        //Pin setting input pull
+  pinMode(buttonC,INPUT_PULLUP);                        //Pin setting input pull
+  pinMode(buttonD,INPUT_PULLUP);                        //Pin setting input pull
+  u8g2.begin();                                         //OLED initialization
+  oledInit();                                           //OLED display initialization
+  initWiFi();                                           //Initialize WiFi
+  initSPIFFS();                                         //Initialization file system
   
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {         //处理Web服务器
-    request->send(SPIFFS, "/index.html", "text/html");                   //连接SPIFFS和index.html
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {         //Handling web server
+    request->send(SPIFFS, "/index.html", "text/html");                   //Connect SPIFFS and INDEX.html
   });
   server.serveStatic("/", SPIFFS, "/");
-  server.on("/showip", HTTP_GET, [](AsyncWebServerRequest * request) {   //创建一个地址 指令显示ip
+  server.on("/showip", HTTP_GET, [](AsyncWebServerRequest * request) {   //Create an address instruction to display IP
     showIPTime = millis();
     showIPFlag = true;                                                   //IPshow
     Serial.println("showIP");
     request->send(200, "text/plain", "OK");
   });
-  server.on("/open", HTTP_GET, [](AsyncWebServerRequest * request) {     //创建一个地址
+  server.on("/open", HTTP_GET, [](AsyncWebServerRequest * request) {     //Create an address
     sysOpenFlag = true ;
     char buf[20];
     sprintf(buf, "%s", "System State: ON");                              //ON
     events.send(buf, "systemstate", millis());
     request->send(200, "text/plain", "OK");
   });
-  server.on("/close", HTTP_GET, [](AsyncWebServerRequest * request) {    //创建一个地址
+  server.on("/close", HTTP_GET, [](AsyncWebServerRequest * request) {    //Create an address
     sysOpenFlag = false ;
     char buf[20];
     sprintf(buf, "%s", "System State: OFF");                             //OFF
     events.send(buf, "systemstate", millis());
     request->send(200, "text/plain", "OK");
   });
-  server.on("/setvalue", HTTP_GET, [](AsyncWebServerRequest * request) { //创建一个地址
+  server.on("/setvalue", HTTP_GET, [](AsyncWebServerRequest * request) { //Create an address
     String message;
     if (request->hasParam(PARAM_MESSAGE)) {
       //Serial.println(request->getParam(PARAM_MESSAGE))->value());
@@ -243,81 +243,81 @@ void setup() {
       u8g2.drawStr(0, 30, "SystemState: OFF ");    
     }
     u8g2.sendBuffer();   
-    if (sysOpenFlag == true && (!isnan(tem))) {                                //不显示ip和读数有数时，刷新oled
-        if (position == 0 && tem < setValue) {                                    //当pos在0（暂定空调关闭） 同时 实时温度小于设定温度  。冷了，开启加热。(关闭空调，不加热）
-          position = 1;                                                           //更新开关位置
-          stepRun(180);                                                           //开启 加热
+    if (sysOpenFlag == true && (!isnan(tem))) {                                //Refresh OLED is refreshed when IP and readings
+        if (position == 0 && tem < setValue) {                                    //When the POS is at 0 (tentative air conditioner, the real-time temperature is less than the set temperature. Cold, open heating. (Turning off air conditioning, no heating)
+          position = 1;                                                           //Update switch position
+          stepRun(180);                                                           //Open heating
         }
-        if (position == 1 && tem > setValue) {                                    //当pos在1（暂定空调开启） 同时 实时温度大于设定温度  。热了，关闭空调。(开启空调，加热）
-          position = 0;                                                           //更新开关位置
-          stepRun(-180);                                                          //关闭 加热
+        if (position == 1 && tem > setValue) {                                    //When POS is at 1 (tentative air conditioner opening), the real-time temperature is greater than the set temperature. Hot, close the air conditioner. (Turn on air conditioner, heating)
+          position = 0;                                                           //Update switch position
+          stepRun(-180);                                                          // Close Heating
         }
     }
     Serial.println(message);
     request->send(200, "text/plain", "OK");
   });
-  events.onConnect([](AsyncEventSourceClient * client) {              //处理Web服务器事件
+  events.onConnect([](AsyncEventSourceClient * client) {              // Processing Web Server Events
     if (client->lastId()) {
       Serial.printf("Client reconnected! Last message ID that it got is: %u\n", client->lastId());
     }
     client->send("hello!", NULL, millis(), 10000);
   });
 
-  upTime = millis();                                     //更新时间
-  temCheckTime = millis();                               //温检时间
-  tempGetTime  = millis();                               //温度时间
-  showIPTime   = millis();                               //ip时间
-  printTime    = millis();                               //打印时间
+  upTime = millis();                                     //Update time
+  temCheckTime = millis();                               //Temperature test time
+  tempGetTime  = millis();                               //Temperature time
+  showIPTime   = millis();                               //IP time
+  printTime    = millis();                               //printing time
 }
 
 void loop() {                  
-  keyCheck(buttonA, 1);                   //按键检测
-  keyCheck(buttonB, 2);                   //按键检测                           /主程序
-  keyCheck(buttonC, 3);                   //按键检测
-  keyCheck(buttonD, 4);                   //按键检测
-  if (showIPFlag == true) {                                                     //显示ip指令get
-    oledShowIp();                                                               //OLED显示
+  keyCheck(buttonA, 1);                   //Button detection
+  keyCheck(buttonB, 2);                   //Button detection                       / Main program
+  keyCheck(buttonC, 3);                   //Button detection
+  keyCheck(buttonD, 4);                   //Button detection
+  if (showIPFlag == true) {                                                     //Display IP instruction Get
+    oledShowIp();                                                               //OLED display
   }
-  if ( (showIPFlag == true) && ((millis() - showIPTime) > showIPTimeMax  )) {   //ip显示完成
-    showIPTime = millis();                                                      //更新时间
-    showIPFlag = false;                                                         //重置显示标志位
-    oledShowIp();                                                               //屏幕显示IP
+  if ( (showIPFlag == true) && ((millis() - showIPTime) > showIPTimeMax  )) {   //IP display completion
+    showIPTime = millis();                                                      //Update time
+    showIPFlag = false;                                                         //Reset display flag
+    oledShowIp();                                                               //Screen display IP
   }
-  if ((millis() - upTime) > upTimeMax) {                                      //上传数据到web
-    upTime = millis();                                                        //更新时间
-    char buf[5], buf2[5];                                                     //新建char[]
-    if (!isnan(tem)) {                                                        //温度不为空
-      sprintf(buf, "%s", String(tem));                                        //int转char[]
-      events.send(buf, "temp", millis());                                     //上传实时温度
+  if ((millis() - upTime) > upTimeMax) {                                      //Upload data to web
+    upTime = millis();                                                        //Update time
+    char buf[5], buf2[5];                                                     //New char []
+    if (!isnan(tem)) {                                                        //Temperature is not empty
+      sprintf(buf, "%s", String(tem));                                        //INT turn char []
+      events.send(buf, "temp", millis());                                     //Upload real-time temperature
     }                                                                         
-    delay(100);                                                               //延时一会
-    sprintf(buf2, "%s", String(setValue));                                    //转换变量
-    events.send(buf2, "temptag", millis());                                   //上传目标温度
+    delay(100);                                                               //Delay
+    sprintf(buf2, "%s", String(setValue));                                    //Conversion variable
+    events.send(buf2, "temptag", millis());                                   //Upload target temperature
   }
-  if (millis() - tempGetTime >= tempGetTimeMax) {                             //获取温度数据
-    tempGetTime = millis();                                                   //更新时间
-    tem = dht.readTemperature();                                              //获取温度
-    Serial.print(F("Temperature: "));                                         //串口打印
+  if (millis() - tempGetTime >= tempGetTimeMax) {                             //Get temperature data
+    tempGetTime = millis();                                                   //Update time
+    tem = dht.readTemperature();                                              //Get temperature
+    Serial.print(F("Temperature: "));                                         //Serial port printing
     Serial.print(tem);Serial.println(F("°C "));
-    if (showIPFlag != true && (!isnan(tem))) {                                //不显示ip和读数有数时，刷新oled
+    if (showIPFlag != true && (!isnan(tem))) {                                //Refresh OLED is refreshed when IP and readings
       oledShow(tem, setValue);
     }
   }
-  //系统启动才会检测是否超过温度/低于温度
-  //pos 0 1   默认0 加热空调不开   0是加热空调'关闭'位置  1是加热空调'开启'位置
+  // The system starts will detect if the temperature is exceeded / below temperature. 
+   // POS 0 1 default 0 heating air conditioner not 0 is heating air conditioner 'Close' position 1 is heating air conditioner 'open'
   if (sysOpenFlag == true) {
-    //暂定系统开启时，每2分钟检测一次，因为开关空调不是马上变温
-    if (millis() - temCheckTime >= temCheckTimeMax) {                           //2分钟检测一次
+    // Tips When the system is turned on, detect once every 2 minutes because the switch air conditioner is not right.
+    if (millis() - temCheckTime >= temCheckTimeMax) {                          // 2 minutes to detect once
 
-      temCheckTime = millis();                                                  //更新时间
-      if (sysOpenFlag == true && (!isnan(tem))) {                                //不显示ip和读数有数时，刷新oled
-        if (position == 0 && tem < setValue) {                                    //当pos在0（暂定空调关闭） 同时 实时温度小于设定温度  。冷了，开启加热。(关闭空调，不加热）
-          position = 1;                                                           //更新开关位置
-          stepRun(180);                                                           //开启 加热
+      temCheckTime = millis();                                                  // Update time
+      if (sysOpenFlag == true && (!isnan(tem))) {                               // Do not display IP and readings, refresh OLED
+        if (position == 0 && tem < setValue) {                                    //When the POS is at 0 (tentative air conditioner, the real-time temperature is less than the set temperature. Cold, open heating. (Turning off air conditioning, no heating)
+          position = 1;                                                           //Update switch position
+          stepRun(180);                                                           //Open heating
         }
-        if (position == 1 && tem > setValue) {                                    //当pos在1（暂定空调开启） 同时 实时温度大于设定温度  。热了，关闭空调。(开启空调，加热）
-          position = 0;                                                           //更新开关位置
-          stepRun(-180);                                                          //关闭 加热
+        if (position == 1 && tem > setValue) {                                    //When POS is at 1 (tentative air conditioner opening), the real-time temperature is greater than the set temperature. Hot, close the air conditioner. (Turn on air conditioner, heating)
+          position = 0;                                                           //Update switch position
+          stepRun(-180);                                                          //Close heating
         }
       }
     }
