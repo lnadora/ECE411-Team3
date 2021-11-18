@@ -1,0 +1,24 @@
+{
+    "Header": {
+        "Comment": "All values are metric (mm)",
+        "CreationDate": "2021-11-18T14:08:24Z",
+        "GenerationSoftware": {
+            "Application": "EAGLE",
+            "Vendor": "Autodesk",
+            "Version": "9.7.0"
+        },
+        "Part": "Single"
+    },
+    "Overall": {
+        "BoardThickness": 1.57,
+        "LayerNumber": 2,
+        "Name": {
+            "ProjectId": "PCB v50"
+        },
+        "Owner": "luke hoskam <anton.hoskam@gmail.com>",
+        "Size": {
+            "X": 81.26,
+            "Y": 58.09
+        }
+    }
+}
