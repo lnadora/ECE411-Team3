@@ -63,7 +63,7 @@ window.addEventListener('resize', onWindowResize, false);
 // Create the 3D representation
 //init3D();
 
-// Create events for the sensor readings //The time, receive time, receive time here
+// Create events for the sensor readings //在这里追加上传数据的时间，接收时间
 if (!!window.EventSource) {
   var source = new EventSource('/events');
 
@@ -82,7 +82,7 @@ if (!!window.EventSource) {
     document.getElementById("temp").innerHTML = e.data;
   }, false);
   
-  // Add variable parameter time, I use data uploaded by ESP32
+  //追加变量参数时间，我用来测试ESP32上传的是数据
   source.addEventListener('temptag', function(e) {
     console.log("temptag", e.data);
     document.getElementById("temptag").innerHTML = e.data;
