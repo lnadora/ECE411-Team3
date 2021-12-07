@@ -47,6 +47,7 @@ DHT dht(DHTPIN, DHTTYPE);                   //dht11 setting
 AsyncWebServer   server(80);                //Create AsyncWebServer object on port 80
 AsyncEventSource events("/events");         //Create event source/events
 CheapStepper stepper (IN1, IN2, IN3, IN4);  //Stepper motor pin setting
+
 U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ SCL, /* data=*/ SDA, /* reset=*/ U8X8_PIN_NONE);   //OLED
 struct Button {
   int buttonState     = LOW;                //Button state variables
@@ -287,6 +288,9 @@ void setup() {
   tempGetTime  = millis();                               //Temperature time
   showIPTime   = millis();                               //ip time
   printTime    = millis();                               //printing time
+
+  stepper.setTotalSteps(2048);
+  stepper.setRpm(4);
 }
 
 void loop() {                  
