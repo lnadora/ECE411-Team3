@@ -47,7 +47,6 @@ DHT dht(DHTPIN, DHTTYPE);                   //dht11 setting
 AsyncWebServer   server(80);                //Create AsyncWebServer object on port 80
 AsyncEventSource events("/events");         //Create event source/events
 CheapStepper stepper (IN1, IN2, IN3, IN4);  //Stepper motor pin setting
-
 U8G2_SSD1306_128X32_UNIVISION_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ SCL, /* data=*/ SDA, /* reset=*/ U8X8_PIN_NONE);   //OLED
 struct Button {
   int buttonState     = LOW;                //Button state variables
@@ -175,6 +174,9 @@ void keyCheck(int button_Pin, int button_num) {
           events.send(buf, "systemstate", millis());
           if (position == 1 ) {                                          //When pos is at 1 (the air conditioner is on), turn off the air conditioner.
             position = 0;                                                //Update switch position
+            stepRun(-180);
+            stepRun(-180);
+            stepRun(-180);
             stepRun(-180);                                               //Turn off heating
           }
         }
@@ -233,6 +235,9 @@ void setup() {
     sysOpenFlag = false ;
     if (position == 1 ) {                                          //When pos is at 1 (the air conditioner is on), turn off the air conditioner.
         position = 0;                                                //Update switch position
+        stepRun(-180);
+        stepRun(-180);
+        stepRun(-180);
         stepRun(-180);                                               //Off heater
     }
     char buf[20];
@@ -266,11 +271,17 @@ void setup() {
     if (sysOpenFlag == true && (!isnan(tem))) {                                //When the ip and the number of readings are not displayed, refresh the oled
         if (position == 0 && tem < setValue) {                                    //When pos is at 0 (tentative air-conditioning is off) and the real-time temperature is lower than the set temperature. When it's cold, turn on the heating. (Turn off the air conditioner, no heating)
           position = 1;                                                           //Update switch position
+          stepRun(180);
+          stepRun(180);
           stepRun(180);                                                           //Turn on heating
+          stepRun(180);
         }
         if (position == 1 && tem > setValue) {                                    //When pos is at 1 (tentative air-conditioning is turned on) and the real-time temperature is greater than the set temperature. It's hot, turn off the air conditioner. (Turn on the air conditioner, heating)
           position = 0;                                                           //Update switch position
-          stepRun(-180);                                                          //Turn off heating
+          stepRun(-180);
+          stepRun(-180);
+          stepRun(-180);
+          stepRun(-180);                                                        //Turn off heating
         }
     }
     Serial.println(message);
@@ -288,9 +299,6 @@ void setup() {
   tempGetTime  = millis();                               //Temperature time
   showIPTime   = millis();                               //ip time
   printTime    = millis();                               //printing time
-
-  stepper.setTotalSteps(2048);
-  stepper.setRpm(4);
 }
 
 void loop() {                  
@@ -334,13 +342,19 @@ void loop() {
 
       temCheckTime = millis();                                                  //Update time
       if (sysOpenFlag == true && (!isnan(tem))) {                                //When the ip and the number of readings are not displayed, refresh the oled
-        if (position == 0 && tem < setValue) {                                    //When pos is at 0 (tentative air-conditioning is off) and the real-time temperature is lower than the set temperature. When it's cold, turn on the heating. (Turn off the air conditioner, no heating)
+        if (position == 0 && tem < setValue-1) {                                  //When pos is at 0 (tentative air-conditioning is off) and the real-time temperature is lower than the set temperature. When it's cold, turn on the heating. (Turn off the air conditioner, no heating)
           position = 1;                                                           //Update switch position
+          stepRun(180);
+          stepRun(180);
+          stepRun(180);
           stepRun(180);                                                           //Turn on heating
         }
-        if (position == 1 && tem > setValue) {                                    //When pos is at 1 (tentative air-conditioning is turned on) and the real-time temperature is greater than the set temperature. It's hot, turn off the air conditioner. (Turn on the air conditioner, heating)
+        if (position == 1 && tem > setValue+1) {                                    //When pos is at 1 (tentative air-conditioning is turned on) and the real-time temperature is greater than the set temperature. It's hot, turn off the air conditioner. (Turn on the air conditioner, heating)
           position = 0;                                                           //Update switch position
+          stepRun(-180);
           stepRun(-180);                                                          //Turn off heating
+          stepRun(-180);
+          stepRun(-180);
         }
       }
     }
