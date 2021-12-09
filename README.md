@@ -36,7 +36,7 @@ Current program functionality:
     -- Through some exprimenting it was found how the data is transmitted
     --- This is documented in the .js file and the .cpp file.
     
-Needs to be done:
+Needs to be done
 
     -Menu
     -- Setup
